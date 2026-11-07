@@ -1,0 +1,95 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Build:
+      dotnet build -c Release
+    The game folder is auto-detected; override with:
+      dotnet build -c Release /p:GameDir="D:\path\to\The Farmer Was Replaced"
+    or set the CPPFARMER_GAME environment variable.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>CppFarmer</AssemblyName>
+    <RootNamespace>CppFarmer</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.2.0</Version>
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+  </PropertyGroup>
+
+  <!--
+    The game folder is never stored in this repository. Set it in one of
+    three ways (checked in this order):
+
+      1. dotnet build -c Release -p:GameDir="C:\...\The Farmer Was Replaced"
+      2. set CPPFARMER_GAME=C:\...\The Farmer Was Replaced
+      3. create a local  plugin\GameDir.local.props  (git-ignored) with:
+           <Project><PropertyGroup><GameDir>...</GameDir></PropertyGroup></Project>
+
+    The assemblies below are compile-time references only. No game file,
+    decompiled source or disassembly is distributed with this project.
+  -->
+  <Import Project="GameDir.local.props"
+          Condition="Exists('GameDir.local.props') and '$(GameDir)' == ''" />
+
+  <PropertyGroup Condition="'$(GameDir)' == '' and '$(CPPFARMER_GAME)' != ''">
+    <GameDir>$(CPPFARMER_GAME)</GameDir>
+  </PropertyGroup>
+
+  <Target Name="RequireGameDir" BeforeTargets="ResolveReferences">
+    <Error Condition="'$(GameDir)' == ''"
+           Text="GameDir is not set. Pass -p:GameDir=&quot;path to game&quot;, set CPPFARMER_GAME, or add plugin\GameDir.local.props. See docs/BUILD.md." />
+  </Target>
+
+  <PropertyGroup>
+    <ManagedDir>$(GameDir)\TheFarmerWasReplaced_Data\Managed</ManagedDir>
+    <BepInExCore>$(GameDir)\BepInEx\core</BepInExCore>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExCore)\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExCore)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Core">
+      <HintPath>$(ManagedDir)\Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Utils">
+      <HintPath>$(ManagedDir)\Utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.IMGUIModule">
+      <HintPath>$(ManagedDir)\UnityEngine.IMGUIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(ManagedDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(ManagedDir)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Unity.TextMeshPro">
+      <HintPath>$(ManagedDir)\Unity.TextMeshPro.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

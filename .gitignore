@@ -1,0 +1,87 @@
+# ---------------------------------------------------------------------------
+# Build outputs - never commit our own compiled binaries; the curated release
+# zip and the vendored third-party BepInEx payload (see exceptions at the end)
+# are the only binaries that are versioned.
+# ---------------------------------------------------------------------------
+build/
+out/
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.so
+*.dylib
+*.pyc
+__pycache__/
+
+# ---------------------------------------------------------------------------
+# Local machine configuration (contains an absolute path to your game install)
+# ---------------------------------------------------------------------------
+GameDir.local.props
+GameDir.local.txt
+CPPFARMER_GAME.local.*
+.env
+.env.local
+
+# ---------------------------------------------------------------------------
+# Runtime diagnostics written next to the installed plugin
+# ---------------------------------------------------------------------------
+bp_debug.txt
+last_generated.py
+doc_last.md
+cpp_unlocks.txt
+cppfarmer_reference.md
+BepInEx/
+*.log
+
+# ---------------------------------------------------------------------------
+# Reverse-engineering artefacts - NEVER COMMIT THESE
+#
+# This repository must not contain decompiled game source, IL disassembly,
+# metadata dumps, extracted game assemblies, or the one-off analysis scripts
+# used during development. See README.md "声明 / Notice".
+# ---------------------------------------------------------------------------
+decomp/
+decompiled/
+out_core.txt
+out_*.txt
+*.il
+*.asm
+*.dump
+*.decompiled.*
+tools/dump_meta.py
+tools/dump_sig.py
+tools/dump_il.py
+ILSpy/
+ilspy_output/
+
+# ---------------------------------------------------------------------------
+# OS / editor
+# ---------------------------------------------------------------------------
+Thumbs.db
+.DS_Store
+.vs/
+.vscode/
+.idea/
+*.swp
+*.user
+
+# ---------------------------------------------------------------------------
+# Bundled third-party BepInEx 5.4.23.6 payload (unmodified official binaries)
+#
+# These files are intentionally versioned so scripts/pack.py can rebuild the
+# release zip from a fresh clone. The generic "*.dll" and "BepInEx/" rules
+# above still apply to every other directory (local game installs, build
+# output, diagnostics). See dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md.
+# ---------------------------------------------------------------------------
+!dist/CppFarmer-mod/winhttp.dll
+!dist/CppFarmer-mod/.doorstop_version
+!dist/CppFarmer-mod/doorstop_config.ini
+!dist/CppFarmer-mod/BepInEx/
+!dist/CppFarmer-mod/BepInEx/core/
+!dist/CppFarmer-mod/BepInEx/core/**
+!dist/CppFarmer-mod/LICENSES/
+!dist/CppFarmer-mod/LICENSES/**
+!dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md

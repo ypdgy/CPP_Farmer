@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Assemble dist/CppFarmer-mod.zip from the versioned payload sources.
+
+The release zip is a *build artifact*. Everything in dist/CppFarmer-mod/ is
+version-controlled, including the unmodified BepInEx 5.4.23.6 payload
+(winhttp.dll, doorstop_config.ini, BepInEx/core/*) and the third-party notices.
+Only C++ Farmer's own two DLLs are injected from local build outputs, so a
+stale DLL can never leak into a release from the source tree.
+
+Usage:
+    python scripts/pack.py
+
+Requires:
+    build/cppfarmer_native.dll       (scripts/build.sh / build.bat)
+    plugin/bin/Release/CppFarmer.dll (dotnet build -c Release ...)
+
+Windows note: do NOT replace this with Compress-Archive -- it writes backslash
+entry names, and some unzip tools then create literal backslashes in filenames.
+Always use python's zipfile (forward slashes) as below.
+"""
+
+from pathlib import Path
+import zipfile
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+PAYLOAD = ROOT / "dist" / "CppFarmer-mod"
+OUT = ROOT / "dist" / "CppFarmer-mod.zip"
+PREFIX = "CppFarmer-mod"
+PLUGIN_DIR = "BepInEx/plugins/CppFarmer/"
+
+BINARIES = {
+    ROOT / "build" / "cppfarmer_native.dll":
+        f"{PREFIX}/{PLUGIN_DIR}cppfarmer_native.dll",
+    ROOT / "plugin" / "bin" / "Release" / "CppFarmer.dll":
+        f"{PREFIX}/{PLUGIN_DIR}CppFarmer.dll",
+}
+
+# Sanity checks: a zip without these would install a broken BepInEx.
+REQUIRED = (
+    "install.bat",
+    "uninstall.bat",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md",
+    "LICENSES/BepInEx-LGPL-2.1.txt",
+    "winhttp.dll",
+    "doorstop_config.ini",
+    ".doorstop_version",
+    "BepInEx/core/BepInEx.dll",
+    "BepInEx/core/BepInEx.Preloader.dll",
+)
+
+
+def main() -> int:
+    if not PAYLOAD.is_dir():
+        print(f"missing payload directory: {PAYLOAD}", file=sys.stderr)
+        return 1
+
+    absent = [f for f in REQUIRED if not (PAYLOAD / f).is_file()]
+    if absent:
+        print("payload incomplete, missing:", file=sys.stderr)
+        for name in absent:
+            print(f"  {name}", file=sys.stderr)
+        return 1
+
+    missing = [str(p) for p in BINARIES if not p.is_file()]
+    if missing:
+        print("build the project first; missing binaries:", file=sys.stderr)
+        for path in missing:
+            print(f"  {path}", file=sys.stderr)
+        return 1
+
+    entries: list[tuple[Path, str]] = []
+    for path in sorted(PAYLOAD.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(PAYLOAD).as_posix()
+        # Our own plugin DLLs are injected below from the build outputs. The
+        # BepInEx DLLs in BepInEx/core/ are part of the payload and must stay.
+        if rel.startswith(PLUGIN_DIR):
+            continue
+        entries.append((path, f"{PREFIX}/{rel}"))
+    for src, arc in BINARIES.items():
+        entries.append((src, arc))
+
+    if OUT.exists():
+        OUT.unlink()
+    with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as zf:
+        for src, arc in entries:
+            zf.write(src, arc)
+
+    print(f"wrote {OUT.relative_to(ROOT)} ({OUT.stat().st_size} bytes, {len(entries)} files)")
+    for _, arc in entries:
+        print(f"  {arc}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

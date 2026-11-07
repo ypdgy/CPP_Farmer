@@ -20,7 +20,7 @@
 >
 > **唯一例外**：发布包为了让安装器开箱即用，额外捆绑了第三方组件
 > **BepInEx 5.4.23.6** 的官方未修改二进制。它不是游戏文件，也不是反编译产物；
-> 官方仓库 **https://github.com/BepInEx/BepInEx**，LGPL-2.1 许可，
+> 官方仓库 **https://github.com/BepInEx/BepInEx **，LGPL-2.1 许可，
 > 详见 [第三方声明](dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md)。
 
 > [!CAUTION]

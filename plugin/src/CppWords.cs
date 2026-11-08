@@ -203,22 +203,30 @@ namespace CppFarmer
         {
             if (string.IsNullOrEmpty(source)) yield break;
 
-            var sb = new StringBuilder(32);
-            foreach (char c in source)
+            // Preprocessor lines are not identifiers: without this, the IDE-only
+            // `#include "cppfarmer_api.hpp"` would put `cppfarmer_api` and `hpp`
+            // into the completion list.
+            foreach (string line in source.Split('\n'))
             {
-                if (char.IsLetterOrDigit(c) || c == '_')
+                if (line.TrimStart().StartsWith("#", StringComparison.Ordinal)) continue;
+
+                var sb = new StringBuilder(32);
+                foreach (char c in line)
                 {
-                    sb.Append(c);
-                    continue;
+                    if (char.IsLetterOrDigit(c) || c == '_')
+                    {
+                        sb.Append(c);
+                        continue;
+                    }
+                    if (sb.Length > 0)
+                    {
+                        string word = sb.ToString();
+                        sb.Clear();
+                        if (word.Length > 1 && !char.IsDigit(word[0])) yield return word;
+                    }
                 }
-                if (sb.Length > 0)
-                {
-                    string word = sb.ToString();
-                    sb.Clear();
-                    if (word.Length > 1 && !char.IsDigit(word[0])) yield return word;
-                }
+                if (sb.Length > 1 && !char.IsDigit(sb[0])) yield return sb.ToString();
             }
-            if (sb.Length > 1 && !char.IsDigit(sb[0])) yield return sb.ToString();
         }
     }
 

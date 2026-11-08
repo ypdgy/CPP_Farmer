@@ -29,6 +29,8 @@ namespace CppFarmer
         internal static ConfigEntry<bool> CfgNoCompleteInStrings;
         internal static ConfigEntry<bool> CfgSmartIndent;
         internal static ConfigEntry<bool> CfgWordTooltips;
+        internal static ConfigEntry<bool> CfgCppExtension;
+        internal static ConfigEntry<bool> CfgExportHeader;
 
         private void Awake()
         {
@@ -62,6 +64,15 @@ namespace CppFarmer
             CfgUnlockTooltips = Config.Bind("UI", "UnlockTooltips", true,
                 "Show which C++ calls and syntax a research unlock grants when "
                 + "hovering over it in the tech tree.");
+            CfgCppExtension = Config.Bind("Storage", "UseCppExtension", true,
+                "Store .cpp windows as '<name>.cpp' instead of the game's '<name>.py', "
+                + "so external editors treat them as C++ files. Existing .cpp.py files "
+                + "are migrated on load and written back as .cpp. Set to false to "
+                + "fall back to the game's .py naming.");
+            CfgExportHeader = Config.Bind("Storage", "ExportEditorHeader", true,
+                "Copy cppfarmer_api.hpp (IDE-only declarations of the game's builtins) "
+                + "into the active save folder, so an external editor finds it with "
+                + "#include \"cppfarmer_api.hpp\" while editing .cpp files.");
 
             if (!NativeBridge.Available)
             {
@@ -73,6 +84,9 @@ namespace CppFarmer
 
             var harmony = new Harmony(Guid);
             harmony.PatchAll(typeof(PatchIsValidCodeFileName));
+            harmony.PatchAll(typeof(PatchCppStorageLoad));
+            harmony.PatchAll(typeof(PatchCppStorageWrite));
+            harmony.PatchAll(typeof(PatchCppStorageWatcher));
             harmony.PatchAll(typeof(PatchParserParse));
             harmony.PatchAll(typeof(PatchGetWordList));
             harmony.PatchAll(typeof(PatchGetSubWordList));
@@ -487,8 +501,9 @@ namespace CppFarmer
 
         private static FieldInfo _fileNameField;
         private static FieldInfo _codeInputField;
-        private static PropertyInfo _codeInputTextField;
+        private static PropertyInfo _codeInputProperty;
         private static FieldInfo _codeTextField;
+        private static int _sourceWarnings;
         private static MethodInfo _tokenizeMethod;
         private static PropertyInfo _simInstProperty;
         private static FieldInfo _workspaceField;
@@ -1083,7 +1098,16 @@ namespace CppFarmer
                 {
                     _codeInputField = AccessTools.Field(typeof(CodeWindow), "codeInput");
                 }
-                return _codeInputField?.GetValue(window) as TMPro.CodeInputField;
+                TMPro.CodeInputField input = _codeInputField?.GetValue(window) as TMPro.CodeInputField;
+                if (input != null) return input;
+
+                // The field is private; the game also exposes CodeInput publicly.
+                // Reading it keeps the mod alive if the field name ever changes.
+                if (_codeInputProperty == null)
+                {
+                    _codeInputProperty = AccessTools.Property(typeof(CodeWindow), "CodeInput");
+                }
+                return _codeInputProperty?.GetValue(window) as TMPro.CodeInputField;
             }
             catch
             {
@@ -1103,8 +1127,13 @@ namespace CppFarmer
             {
                 foreach (string dir in SaveDirectories())
                 {
-                    string path = System.IO.Path.Combine(dir, fileName + ".py");
-                    if (System.IO.File.Exists(path)) return System.IO.File.ReadAllText(path);
+                    // .cpp windows are stored under their own name now; older
+                    // saves used "<name>.py". Try both, newest layout first.
+                    foreach (string candidate in new[] { fileName, fileName + ".py" })
+                    {
+                        string path = System.IO.Path.Combine(dir, candidate);
+                        if (System.IO.File.Exists(path)) return System.IO.File.ReadAllText(path);
+                    }
                 }
             }
             catch (Exception e)
@@ -1118,18 +1147,26 @@ namespace CppFarmer
         {
             try
             {
-                if (_codeInputField == null)
+                // Read through the concrete type instead of reflecting the "text"
+                // property. The reflection path silently returned null when the
+                // property lookup did not resolve, which made every .cpp window
+                // compile as an empty script.
+                TMPro.CodeInputField input = GetCodeInput(window);
+                if (input != null)
                 {
-                    _codeInputField = AccessTools.Field(typeof(CodeWindow), "codeInput");
-                    if (_codeInputField != null)
-                    {
-                        _codeInputTextField = _codeInputField.FieldType.GetProperty("text");
-                    }
+                    string text = input.text;
+                    if (text != null) return text;
                 }
-                if (_codeInputField != null && _codeInputTextField != null)
+                else
                 {
-                    object input = _codeInputField.GetValue(window);
-                    if (input != null) return _codeInputTextField.GetValue(input) as string;
+                    // Visible on purpose: this is the difference between "my code
+                    // does nothing" and a diagnosable failure. Limited so a broken
+                    // window cannot flood the log every frame.
+                    if (_sourceWarnings++ < 3)
+                    {
+                        Plugin.Log.LogWarning("cpp source: codeInput field is null; "
+                            + "cannot read the editor text (falling back to disk)");
+                    }
                 }
 
                 if (_codeTextField == null)

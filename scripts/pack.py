@@ -36,6 +36,11 @@ BINARIES = {
         f"{PREFIX}/{PLUGIN_DIR}CppFarmer.dll",
 }
 
+# Copied into the package so players can point their IDE at the game API.
+EXTRA_DIRS = {
+    ROOT / "editor": f"{PREFIX}/editor",
+}
+
 # Sanity checks: a zip without these would install a broken BepInEx.
 REQUIRED = (
     "install.bat",
@@ -80,6 +85,17 @@ def main() -> int:
         if rel.startswith(PLUGIN_DIR):
             continue
         entries.append((path, f"{PREFIX}/{rel}"))
+
+    for src_dir, arc_dir in EXTRA_DIRS.items():
+        if not (src_dir / "cppfarmer_api.hpp").is_file():
+            print(f"missing editor payload in {src_dir}", file=sys.stderr)
+            return 1
+        for path in sorted(src_dir.rglob("*")):
+            if not path.is_file():
+                continue
+            rel = path.relative_to(src_dir).as_posix()
+            entries.append((path, f"{arc_dir}/{rel}"))
+
     for src, arc in BINARIES.items():
         entries.append((src, arc))
 

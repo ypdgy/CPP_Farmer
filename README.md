@@ -71,6 +71,8 @@
 | 编辑器集成 | C++ 关键字补全、C++ 语法着色、字符串/注释内不弹补全、`{` 回车自动缩进 |
 | 词条说明 | 补全列表与代码悬停时，C++ 关键字和标准库写法都有中文说明（不支持的直接标注） |
 | 说明页 | 右上角按钮 + 文档首页链接，指向模组自带的 C++ 参考，内含「常见错误与函数调用」一页 |
+| 原生扩展名 | `.cpp` 窗口直接存成 `main.cpp`（不再包一层 `.py`），旧存档自动迁移 |
+| 外部编辑 | 插件自动把 `cppfarmer_api.hpp` 与 VS Code 配置放进存档目录，编辑器可补全游戏内置函数与枚举 |
 | 科技树提示 | 悬停节点显示该科技解锁后可用的 C++ 写法 |
 | 断点 | `.cpp` 行号换算成生成脚本的字符偏移；跨文件由游戏原生 `import` 定位到被包含窗口 |
 | 执行高亮 | 运行/单步的光块按行映射回 `.cpp` 源码，不会落在注释或空行上 |
@@ -129,19 +131,40 @@ int main() {
 
 ### 存档目录里的文件是怎么对应的
 
-游戏把每个打开的代码窗口写成一个文件，文件名是 **`窗口名 + .py`**：
+`.cpp` 窗口现在**直接以窗口名存盘**（`Storage / UseCppExtension`，默认开启），
+原生脚本仍按游戏的 `<窗口名>.py` 规则：
 
 | 编辑器里看到的窗口 | 磁盘上的文件 |
 |---|---|
-| `main.cpp` | `main.cpp.py` |
-| `dfs.cpp` | `dfs.cpp.py` |
+| `main.cpp` | `main.cpp` |
+| `dfs.cpp` | `dfs.cpp` |
 | `main.py`（原生脚本） | `main.py` |
 
 所以：
 
-- 想**手工新增**一个 C++ 文件，请写成 `xxx.cpp.py`；只建 `xxx.cpp` 不会被加载（游戏的
-  加载只枚举扩展名为 `.py` 的文件）。
-- 想**改名**，请连同 `.py` 一起改，否则会出现两个窗口或直接读不到。
+- 想**手工新增**一个 C++ 文件，直接建 `xxx.cpp` 即可。
+- 旧版本留下的 `xxx.cpp.py` 会在**加载时自动改名**为 `xxx.cpp`，代码不会丢；
+  若两者同时存在，以 `.cpp` 为准。
+- 关掉这个功能（`Storage / UseCppExtension = false`）就退回旧的 `<窗口名>.py` 命名，
+  已经迁移的文件会在下次保存时改回。
+- 想**改名**，直接改 `.cpp` 文件名；`.py` 窗口仍需连 `.py` 一起改。
+
+插件还会在存档目录放一个**非游戏文件**，供外部编辑器使用，不影响存档内容：
+
+| 文件 | 用途 |
+|---|---|
+| `cppfarmer_api.hpp` | 游戏内置函数与枚举的声明，编辑器补全用；每次启动按插件版本重写 |
+
+代码里写 `#include "cppfarmer_api.hpp"` 即可（引号形式会搜索当前目录），
+**不需要任何编辑器配置**；这行对游戏零影响，前端会专门过滤它。
+游戏不加载 `.hpp`，自动存档也只清理 `.py` / `.cpp`，所以它不会被删。
+不需要时把 `Storage / ExportEditorHeader` 设为 `false`，或手动删除。
+
+### 自动存档会删文件
+
+游戏的自动存档（选项 `autosave`，默认开启，每 30 秒一次）在写回所有窗口之后，会
+**删除存档目录里所有“不是当前打开的窗口”的 `.py` 文件**——这是游戏自身的行为，用来
+清理已删除的代码窗口。本模组把同样的清理扩展到 `.cpp`，否则关掉的 C++ 窗口会永远留在磁盘上。
 
 ### 自动存档会删文件
 
@@ -217,8 +240,10 @@ CppFarmer/
 │   ├─ CppIndent.cs         `{` 结尾回车自动缩进一级
 │   ├─ CppTooltips.cs       补全/悬停的 C++ 词条说明
 │   ├─ CppBlink.cs          执行高亮坐标回映射到源码
+│   ├─ CppStorage.cs        `.cpp` 扩展名读写、旧存档迁移、外部改动接管
 │   ├─ CppHelp.cs           独立说明页（含常见错误页）、首页链接
 │   └─ CppUnlockInfo.cs     科技树 tooltip 的 C++ 能力提示
+├─ editor/             外部编辑器用的 API 头（IDE-only）
 ├─ scripts/            构建、目录监听与打包脚本（pack.py 生成 Release zip）
 ├─ examples/           可直接编译的示例
 ├─ tests/              特性用例、错误用例、多文件用例
@@ -234,6 +259,7 @@ CppFarmer/
 - [docs/SAVE_SAFETY.md](docs/SAVE_SAFETY.md) — 存档安全：备份、自动存档行为、恢复与免责声明
 - [docs/BUILD.md](docs/BUILD.md) — 构建前置、路径配置、常见构建错误
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — 运行期问题排查
+- [editor/README.md](editor/README.md) — 外部编辑器（VS Code / clangd / CLion）配置
 - [THIRD_PARTY_NOTICES.md](dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md) — 捆绑的 BepInEx 来源、许可证与校验
 
 ## 已知限制
@@ -245,6 +271,8 @@ CppFarmer/
 - 转译产物与 C++ 源码的坐标系不同：断点、执行高亮、错误位置都已映射回源码，但
   执行高亮的粒度有时只能落到「整行」（生成脚本里没有一一对应的 token 时）
 - 需要随游戏更新维护补丁点；补丁失效时插件会尽量降级而不是崩游戏
+- `editor/cppfarmer_api.hpp` 只是给 IDE 的声明，**不参与游戏内编译**；能写什么仍以
+  [docs/LANGUAGE.md](docs/LANGUAGE.md) 为准，IDE 不会提示前端不支持的那些写法
 - 捆绑的 `winhttp.dll` 是 DLL 代理加载器，个别安全软件可能误报；可从
   [BepInEx 官方仓库](https://github.com/BepInEx/BepInEx) 自行下载同版本核对
 

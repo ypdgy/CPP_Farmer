@@ -46,35 +46,42 @@
 ├─ Saves\Save0\            当前存档（也可能叫 Save1…）
 │   ├─ save.json           世界状态、科技树、物品、成就等
 │   ├─ __builtins__.py     游戏内置定义，勿删勿改
-│   ├─ main.py             窗口 `main.py` 的代码
-│   ├─ main.cpp.py         窗口 `main.cpp` 的代码
-│   └─ dfs.cpp.py          窗口 `dfs.cpp` 的代码
+│   ├─ main.py             窗口 `main.py` 的代码（原生脚本）
+│   ├─ main.cpp            窗口 `main.cpp` 的代码
+│   ├─ dfs.cpp             窗口 `dfs.cpp` 的代码
+│   └─ cppfarmer_api.hpp   外部编辑器用的 API 头（非游戏文件，可删）
 └─ Backup\                 游戏自己留下的快照目录
     └─ Save0_backupNNN\    每次保存前的快照（会被轮换清理）
 ```
 
-关键点：**磁盘文件名 = 窗口名 + `.py`**。
+关键点：**`.cpp` 窗口直接以窗口名存盘；`.py` 窗口仍是窗口名 + `.py`**。
 
 | 编辑器里的窗口名 | 磁盘文件 |
 |---|---|
-| `main.cpp` | `main.cpp.py` |
-| `dfs.cpp` | `dfs.cpp.py` |
+| `main.cpp` | `main.cpp` |
+| `dfs.cpp` | `dfs.cpp` |
 | `main.py` | `main.py` |
 
-- 想手工新增 C++ 文件，必须叫 `xxx.cpp.py`；只放一个 `xxx.cpp` 不会被加载，
-  加载器只枚举扩展名为 `.py` 的文件。
-- 改名要连 `.py` 一起改，否则会出现两个窗口或读不到内容。
+- 手工新增 C++ 文件直接建 `xxx.cpp` 即可。
+- 旧版本留下的 `xxx.cpp.py` 会在**加载时自动改名**为 `xxx.cpp`，代码不会丢；
+  两者同时存在时以 `.cpp` 为准，多余的 `.py` 被删除。
+- 关掉 `Storage / UseCppExtension`（设为 `false`）可退回旧的 `<窗口名>.py` 规则，
+  下次保存会把文件改回去。
+- 改名直接改文件名；`.py` 窗口仍需连 `.py` 一起改。
 - `__builtins__.py` 是特例，游戏保存时不会删除它。
+- `cppfarmer_api.hpp` 是模组放的 IDE 辅助文件，不是游戏文件；
+  游戏不加载、自动存档也不清理它。不需要时设 `Storage / ExportEditorHeader = false`。
 
 ---
 
 ## 3. 三个真实的风险点
 
-### 3.1 自动存档会删除「多余」的 `.py`
+### 3.1 自动存档会删除「多余」的代码文件
 
 游戏选项 `autosave`（默认 `enabled`，每 30 秒一次）写回所有当前打开的窗口之后，
 会**删除存档目录里所有「不属于当前打开窗口」的 `.py` 文件**
 （`WriteCodeFiles` 末尾清理，用来同步编辑器里删除窗口的操作）。
+本模组把同一条规则扩展到 `.cpp`，否则关闭的 C++ 窗口会一直留在磁盘上。
 
 因此：
 
@@ -123,7 +130,7 @@ xcopy "%DATA%\Saves" "%USERPROFILE%\Desktop\TFWR-saves-backup\Saves\" /E /I /Y
 xcopy "%DATA%\Backup" "%USERPROFILE%\Desktop\TFWR-saves-backup\Backup\" /E /I /Y
 ```
 
-3. 检查目标目录里确实有 `save.json` 和你的 `*.cpp.py`。
+3. 检查目标目录里确实有 `save.json` 和你的 `.cpp` 代码文件。
 4. 之后每次**升级插件、改 C++ 前端、大改代码文件**之前，再备份一次。
 
 ---
@@ -146,7 +153,8 @@ xcopy "%DATA%\Backup" "%USERPROFILE%\Desktop\TFWR-saves-backup\Backup\" /E /I /Y
 
 | 症状 | 原因 | 处理 |
 |---|---|---|
-| 手工放进去的 `xxx.cpp.py` 不见了 | 游戏运行时被 `autosave` 清理 | 退出游戏后重新复制 |
+| 手工放进去的 `xxx.cpp` 不见了 | 游戏运行时被 `autosave` 清理 | 退出游戏后重新复制 |
+| 出现 `xxx.cpp.py` 双份 | 旧格式未被迁移（外部程序锁住文件） | 退出游戏后删掉 `.py` 那份，保留 `.cpp` |
 | 「写入存档文件失败」弹窗 | 保存链路异常（重复键、文件被占用、磁盘问题） | 退出游戏 → 备份 → 看 `LogOutput.log` 的 `save write failed` → 删掉多余 `.py` |
 | 代码窗口内容与预期不符 | file watcher 与 autosave 抢占，或外部编辑器写入时机不对 | 只启用其中一个；退出游戏后手工改 |
 | 世界状态被脚本改坏 | C++ 逻辑错误，脚本真实执行 | 从备份或 `Backup\Save0_backupNNN` 恢复 |

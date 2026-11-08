@@ -58,6 +58,9 @@ const char* cppfarmer_version(void);
 | `Parser.Parse` | 唯一收口：把生成脚本的 token 流交给游戏解析器 |
 | `Tokenizer.Tokenize` | 直接调用（非补丁），用游戏自己的词法器校验生成结果 |
 | `Saver.IsValidCodeFileName` | 放行 `.cpp`，让它作为普通代码文件参与保存与备份 |
+| `Saver.Load` | 前置：`.cpp.py` → `.cpp` 迁移 + 临时镜像；后置：删除镜像 |
+| `Saver.WriteCodeFiles` | 后置：把写出的 `x.cpp.py` 改名成 `x.cpp`，清理已关闭的 `.cpp` |
+| `Saver.OnFileChanged` | 文件监听只认 `.py`，`.cpp` 的改动由本模组塞进游戏的待处理队列 |
 | `Saver.WriteTextAtomically` | 保存失败时把真实异常写进日志（诊断用） |
 | `CodeWindow.Load` | 读取窗口文本/文件名；注意其字符串参数是**文件内容** |
 | `BreakPointPanel.UpdateBreakpoints` | 把 C++ 行号换算成生成脚本的字符偏移 |
@@ -91,13 +94,16 @@ UI 补丁全部按 `.cpp` 文件名过滤，`.py` 窗口行为不变。渲染页
 
 ### 存档交互边界
 
-插件不写存档、不删文件、不改 `save.json`、不碰物品与科技树字段。但 `.cpp` 窗口
-会作为普通代码文件参与游戏的保存流程，因此：
+插件不写 `save.json`、不碰物品与科技树字段。但 `.cpp` 窗口会作为普通代码文件
+参与游戏的保存流程，并且**扩展名被改成 `.cpp`**（`Storage/UseCppExtension`）：
 
-- 磁盘文件名是 `<窗口名>.py`，例如 `main.cpp` → `main.cpp.py`
-- 游戏 `autosave`（默认每 30 秒）写回窗口后会删除「不属于当前打开窗口」的 `.py`
+- `.cpp` 窗口存成 `<窗口名>`，例如 `main.cpp` → `main.cpp`；`.py` 窗口仍是 `<窗口名>.py`
+- 游戏的加载器只枚举 `*.py`，所以读取时用「临时镜像」：先迁移 `x.cpp.py` → `x.cpp`，
+  再为每个 `x.cpp` 写一份 `x.cpp.py`，`Saver.Load` 结束后删除镜像
+- 保存时游戏写的是 `x.cpp.py`，后置补丁把它改名成 `x.cpp`，并清理窗口已关闭的 `.cpp`
+- `autosave`（默认每 30 秒）写回窗口后会删除「不属于当前打开窗口」的 `.py` 与 `.cpp`
 - `autosave` 与 `file watcher` 互斥，游戏会自动关掉其中一个
-- 保存中途失败会留下写了一半的状态，弹窗是笼统的「写入存档文件失败」
+- 文件监听只认 `.py`，`.cpp` 的外部改动由 `CppStorage` 塞进游戏自己的待处理队列
 
 这些是**游戏自身行为**，但模组改变了哪些文件参与其中，因此使用前必须备份。
 详见 [SAVE_SAFETY.md](SAVE_SAFETY.md)。

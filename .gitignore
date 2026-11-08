@@ -69,19 +69,11 @@ Thumbs.db
 *.user
 
 # ---------------------------------------------------------------------------
-# Bundled third-party BepInEx 5.4.23.6 payload (unmodified official binaries)
+# Release output - NOT versioned.
 #
-# These files are intentionally versioned so scripts/pack.py can rebuild the
-# release zip from a fresh clone. The generic "*.dll" and "BepInEx/" rules
-# above still apply to every other directory (local game installs, build
-# output, diagnostics). See dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md.
+# The release zip and the bundled BepInEx payload are build artifacts; publish
+# them as a GitHub Release asset instead of committing them. Note: the payload
+# source used by scripts/pack.py lives under dist/CppFarmer-mod/, so a fresh
+# clone cannot rebuild the zip without downloading BepInEx 5.4.23.6 separately.
 # ---------------------------------------------------------------------------
-!dist/CppFarmer-mod/winhttp.dll
-!dist/CppFarmer-mod/.doorstop_version
-!dist/CppFarmer-mod/doorstop_config.ini
-!dist/CppFarmer-mod/BepInEx/
-!dist/CppFarmer-mod/BepInEx/core/
-!dist/CppFarmer-mod/BepInEx/core/**
-!dist/CppFarmer-mod/LICENSES/
-!dist/CppFarmer-mod/LICENSES/**
-!dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md
+/dist/

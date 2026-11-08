@@ -39,6 +39,7 @@ namespace CppFarmer
             {
                 if (!TryParseInclude(lines[i], out string target, out bool angled)) continue;
                 if (angled) continue;                       // no C++ standard library here
+                if (IsEditorHeader(target)) continue;       // IDE-only stub, dropped by the compiler
                 if (!seen.Add(target)) continue;
 
                 string module = ModuleNameOf(target);
@@ -68,6 +69,19 @@ namespace CppFarmer
                 moduleToFile[module] = target;
             }
             return source;
+        }
+
+        /// <summary>
+        /// True for the IDE-only header. It has no window and no module, and the
+        /// compiler drops the directive, so validating it would only report a
+        /// bogus "file not found".
+        /// </summary>
+        public static bool IsEditorHeader(string file)
+        {
+            if (string.IsNullOrEmpty(file)) return false;
+            int slash = file.LastIndexOfAny(new[] { '/', '\\' });
+            string name = slash >= 0 ? file.Substring(slash + 1) : file;
+            return string.Equals(name, "cppfarmer_api.hpp", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>"hello.cpp" -> "hello". Null when the stem is not an identifier.</summary>

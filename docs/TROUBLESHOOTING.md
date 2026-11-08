@@ -95,8 +95,9 @@ Enabled = false
 
 | 现象 | 处理 |
 |---|---|
-| 手工新增的 `xxx.cpp.py` 不见了 | 运行时被 `autosave` 清理；退出游戏后重新复制。文件名必须是 `<窗口名>.py` |
-| 只建了 `xxx.cpp` 却没出现窗口 | 加载器只枚举 `.py`；改名为 `xxx.cpp.py` |
+| 手工新增的 `xxx.cpp` 不见了 | 运行时被 `autosave` 清理；退出游戏后重新复制。C++ 文件直接叫 `<窗口名>.cpp` |
+| 只建了 `xxx.cpp` 却没出现窗口 | 确认 `Storage/UseCppExtension = true`；旧版需要 `xxx.cpp.py`，新版读 `.cpp` |
+| 存档里同时有 `xxx.cpp` 和 `xxx.cpp.py` | 旧格式残留；退出游戏后删掉 `.py` 那份，以 `.cpp` 为准 |
 | 窗口名对不上 / 出现两个窗口 | 改名时连同 `.py` 后缀一起改 |
 | 世界状态被脚本改坏 | 从自建备份或 `Backup/Save0_backupNNN` 恢复；这是脚本真实执行的后果 |
 | 想彻底回退 | `uninstall.bat` 只删插件目录；再按 [存档安全](SAVE_SAFETY.md) 恢复存档 |
@@ -183,6 +184,8 @@ helper/前导行会向后吸附到最近的有映射行。
 | `UI / NoCompleteInStrings` | true | 字符串/字符字面量/注释内不弹补全 |
 | `UI / SmartIndent` | true | `.cpp` 窗口里 `{` 结尾的行回车后多缩进一级 |
 | `UI / WordTooltips` | true | 补全列表与编辑器悬停时的 C++ 词条说明 |
+| `Storage / UseCppExtension` | true | `.cpp` 窗口存成 `<名字>.cpp`；false 退回游戏的 `.py` 命名（旧文件会在保存时改回） |
+| `Storage / ExportEditorHeader` | true | 把 `cppfarmer_api.hpp` 放进当前存档目录，供外部编辑器补全 |
 
 ## 诊断文件
 

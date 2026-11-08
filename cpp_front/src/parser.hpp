@@ -280,8 +280,28 @@ private:
     // ------------------------------------------------------------------
     // top level
     // ------------------------------------------------------------------
+    // The editor API header only exists for IDE completion; there is nothing to
+    // import and no window to open for it. Both  #include "cppfarmer_api.hpp"
+    // and  #include <cppfarmer_api.hpp>  are dropped here.
+    static bool isEditorHeaderInclude(const std::string& name) {
+        const std::string expect = "cppfarmer_api.hpp";
+        size_t slash = name.find_last_of("/\\");
+        std::string base = (slash == std::string::npos) ? name : name.substr(slash + 1);
+        if (base.size() != expect.size()) return false;
+        for (size_t i = 0; i < base.size(); ++i) {
+            char a = base[i];
+            if (a >= 'A' && a <= 'Z') a = static_cast<char>(a - 'A' + 'a');
+            if (a != expect[i]) return false;
+        }
+        return true;
+    }
+
     void parseTopLevel(Program& prog) {
         if (cur().kind == Tok::Include) {
+            if (isEditorHeaderInclude(cur().text)) {
+                advance();                      // IDE-only stub: emit nothing
+                return;
+            }
             auto include = std::make_unique<Stmt>();
             include->kind = StmtKind::Include;
             include->line = cur().line;

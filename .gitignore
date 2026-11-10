@@ -32,9 +32,11 @@ bp_debug.txt
 last_generated.py
 doc_last.md
 cpp_unlocks.txt
-cppfarmer_reference.md
 BepInEx/
 *.log
+
+# NOTE: cppfarmer_reference.md / cppfarmer_errors.md are no longer runtime
+# artefacts. Their source of truth is plugin/pages/, which IS versioned.
 
 # ---------------------------------------------------------------------------
 # Reverse-engineering artefacts - NEVER COMMIT THESE

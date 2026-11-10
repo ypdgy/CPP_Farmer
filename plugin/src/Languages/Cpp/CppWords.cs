@@ -229,35 +229,4 @@ namespace CppFarmer
             }
         }
     }
-
-    /// <summary>
-    /// Stops the completer from opening inside C++ strings, character literals
-    /// and comments. OpenCodeCompleterAtCarret() is the single entry point that
-    /// eventually calls CodeCompleter.Open, so skipping it leaves no empty popup.
-    /// </summary>
-    [HarmonyPatch(typeof(CodeWindow), nameof(CodeWindow.OpenCodeCompleterAtCarret))]
-    internal static class PatchNoCompleteInStrings
-    {
-        [HarmonyPrefix]
-        private static bool Prefix(CodeWindow __instance)
-        {
-            if (!Plugin.CfgEnabled.Value) return true;
-            if (Plugin.CfgNoCompleteInStrings == null || !Plugin.CfgNoCompleteInStrings.Value) return true;
-            if (__instance == null || !CppSupport.IsCppWindow(__instance)) return true;
-
-            try
-            {
-                var input = CppSupport.GetCodeInput(__instance);
-                if (input == null) return true;
-
-                string text = input.text ?? string.Empty;
-                int caret = Mathf.Clamp(input.stringPosition, 0, text.Length);
-                return !CppWords.InsideStringOrComment(text, caret);
-            }
-            catch
-            {
-                return true;                         // never break typing
-            }
-        }
-    }
 }

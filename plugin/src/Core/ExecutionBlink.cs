@@ -21,14 +21,14 @@ namespace CppFarmer
     /// That matters: breakpoint matching compares node wordStart against the
     /// *generated* offsets, so the node must keep its original value.
     /// </summary>
-    internal static class CppBlinkMap
+    internal static class ExecutionBlink
     {
         public static void Remap(CodeWindow window, ref int start, ref int end)
         {
             if (window == null || !Plugin.CfgEnabled.Value) return;
-            if (!CppSupport.IsCppWindow(window)) return;
+            if (!LanguageRegistry.IsModWindow(window)) return;
 
-            CppSupport.CompiledUnit unit = CppSupport.GetUnit(window);
+            CodeSupport.CompiledUnit unit = CodeSupport.GetUnit(window);
             if (unit == null) return;
             if (string.IsNullOrEmpty(unit.Generated) || string.IsNullOrEmpty(unit.Source)) return;
             if (unit.LineMap == null || unit.GeneratedLineStarts == null ||
@@ -130,7 +130,7 @@ namespace CppFarmer
         {
             try
             {
-                CppBlinkMap.Remap(codeWindow, ref start, ref end);
+                ExecutionBlink.Remap(codeWindow, ref start, ref end);
             }
             catch (Exception e)
             {
@@ -148,7 +148,7 @@ namespace CppFarmer
             try
             {
                 int end = stringIndex;
-                CppBlinkMap.Remap(codeWindow, ref stringIndex, ref end);
+                ExecutionBlink.Remap(codeWindow, ref stringIndex, ref end);
             }
             catch (Exception e)
             {

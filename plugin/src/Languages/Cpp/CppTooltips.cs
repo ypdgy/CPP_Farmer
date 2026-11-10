@@ -168,8 +168,8 @@ namespace CppFarmer
 
             try
             {
-                if (context == null || !CppSupport.IsCppWindow(context)) return;
-                string text = CppTooltips.Describe(word);
+                if (context == null || !CppLanguage.Instance.Owns(context)) return;
+                string text = CppLanguage.Instance.DescribeWord(word);
                 if (text == null) return;
                 __result = new TooltipInfo(text);
             }

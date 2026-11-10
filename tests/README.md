@@ -1,7 +1,7 @@
 # 测试用例
 
 这些 `.cpp` 是**给 `build/cppfarmer.exe` 转译的输入**，不是能用 g++ 直接编译的标准 C++。
-它们只用本模组支持的 C++ 子集（见 [docs/LANGUAGE.md](../docs/LANGUAGE.md)）。
+它们只用本模组支持的 C++ 子集（见 [docs/languages/cpp.md](../docs/languages/cpp.md)）。
 
 ## 目录约定
 
@@ -31,7 +31,7 @@ for f in tests/features.cpp tests/ternary.cpp tests/unicode_space.cpp \
 done
 
 # 负向用例：全部应为 rc!=0，且错误信息里带源码行号
-for f in tests/err/*.cpp; do
+for f in tests/cpp/err/*.cpp; do
     msg=$(./build/cppfarmer.exe "$f" --check 2>&1)
     rc=$?
     printf '%-30s rc=%s  %s\n' "$f" "$rc" "$(echo "$msg" | head -1)"

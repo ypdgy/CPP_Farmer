@@ -85,29 +85,29 @@ CXX=clang++ bash scripts/build.sh
 
 ```bash
 # 单文件转译
-build/cppfarmer.exe examples/farm.cpp --stdout
-build/cppfarmer.exe examples/maze.cpp --check
+build/cppfarmer.exe examples/cpp/farm.cpp --stdout
+build/cppfarmer.exe examples/cpp/maze.cpp --check
 
 # 特性清单与行映射
-build/cppfarmer.exe tests/features.cpp --print-features
-build/cppfarmer.exe tests/features.cpp --line-map
+build/cppfarmer.exe tests/cpp/features.cpp --print-features
+build/cppfarmer.exe tests/cpp/features.cpp --line-map
 
 # 批量转译 + 语法近似校验
 mkdir -p /tmp/cppfarmer && ./build/cppfarmer-watch.exe examples /tmp/cppfarmer --once
 python -m py_compile /tmp/cppfarmer/*.py
 
 # 正向用例应 rc=0，tests/err/ 负向用例应 rc!=0
-for f in tests/features.cpp tests/inc/main.cpp; do
+for f in tests/cpp/features.cpp tests/cpp/inc/main.cpp; do
     build/cppfarmer.exe "$f" --stdout >/dev/null; echo "$f rc=$?"
 done
-for f in tests/err/*.cpp; do
+for f in tests/cpp/err/*.cpp; do
     build/cppfarmer.exe "$f" --check >/dev/null 2>&1; rc=$?; echo "$f rc=$rc"
 done
 ```
 
 用例目录约定与完整回归脚本见 [tests/README.md](../tests/README.md)。
-`tests/err/` 是故意写错、必须报错的用例（全角标点、非法字符、位运算、缺分号、
-无效果语句等）；`tests/unicode_space.cpp` 等正向用例放在 `tests/` 下。
+`tests/cpp/err/` 是故意写错、必须报错的用例（全角标点、非法字符、位运算、缺分号、
+无效果语句等）；`tests/cpp/unicode_space.cpp` 等正向用例放在 `tests/cpp/` 下。
 
 ## 产物
 

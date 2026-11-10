@@ -226,36 +226,34 @@ python scripts/pack.py
 
 ```
 CppFarmer/
-├─ cpp_front/src/     原生 C++ 前端编译器
-│   ├─ lexer.hpp  ast.hpp  parser.hpp  codegen.hpp
-│   ├─ main.cpp          cppfarmer      命令行编译器
-│   ├─ watch.cpp         cppfarmer-watch    目录监听 / 批量转译
-│   └─ dll.cpp           cppfarmer_transpile_ex  供插件 P/Invoke 的原生接口
-├─ plugin/src/         BepInEx / Harmony 插件（C#）
-│   ├─ Plugin.cs            补丁注册、转译链路、断点映射、行/字符坐标换算
-│   ├─ NativeBridge.cs      P/Invoke 与 UTF-8 内存管理
-│   ├─ CppIncludes.cs       #include → import 的模块映射
-│   ├─ CppWords.cs          C++ 词表、字符串内补全拦截
-│   ├─ CppHighlighter.cs    C++ 语法着色、失焦保持滚动位置
-│   ├─ CppIndent.cs         `{` 结尾回车自动缩进一级
-│   ├─ CppTooltips.cs       补全/悬停的 C++ 词条说明
-│   ├─ CppBlink.cs          执行高亮坐标回映射到源码
-│   ├─ CppStorage.cs        `.cpp` 扩展名读写、旧存档迁移、外部改动接管
-│   ├─ CppHelp.cs           独立说明页（含常见错误页）、首页链接
-│   └─ CppUnlockInfo.cs     科技树 tooltip 的 C++ 能力提示
-├─ editor/             外部编辑器用的 API 头（IDE-only）
-├─ scripts/            构建、目录监听与打包脚本（pack.py 生成 Release zip）
-├─ examples/           可直接编译的示例
-├─ tests/              特性用例、错误用例、多文件用例
-├─ src/main.cpp        起步模板（供目录监听使用）
-├─ dist/               CppFarmer-mod/（包内文本源 + 捆绑的 BepInEx 载荷）+ 可上传的 zip
-└─ docs/               架构、语法、存档安全、构建、排障
+├─ native/                    原生前端（一个 DLL，多门语言）
+│   ├─ include/cf_api.h       语言无关 ABI
+│   ├─ src/registry.cpp       语言分发表、cf_* 实现、旧符号别名
+│   └─ frontends/cpp/         C++ 子集：lexer/parser/codegen + CLI + watch
+├─ plugin/src/                BepInEx / Harmony 插件（C#）
+│   ├─ Plugin.cs              配置项、补丁注册
+│   ├─ Core/                  语言无关：源码读取、转译缓存、存档、坐标映射、文档路由
+│   ├─ Languages/
+│   │   ├─ LanguageProfile.cs 一门语言要实现什么
+│   │   ├─ LanguageRegistry.cs 按文件名找语言
+│   │   └─ Cpp/               C++ 的词表、着色规则、缩进、include、帮助页、提示
+│   └─ Ui/HelpButton.cs       右上角说明页按钮
+├─ plugin/pages/              游戏内说明页正文（Markdown，随包发布，可直接编辑）
+├─ editor/                    外部编辑器用的 API 头（IDE-only）
+├─ scripts/                   构建、目录监听与打包（pack.py 生成 Release zip）
+├─ examples/cpp/              可直接编译的示例
+├─ templates/cpp/             起步模板（目录监听用）
+├─ tests/cpp/                 特性用例、错误用例、多文件用例
+├─ dist/                      CppFarmer-mod/（包内文本源 + 捆绑的 BepInEx 载荷）+ 上传用 zip
+└─ docs/                      架构、语言规格、存档安全、构建、排障
 ```
 
 ## 文档
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 架构、集成点、并发约束、成就与科技树保护
-- [docs/LANGUAGE.md](docs/LANGUAGE.md) — C++ 子集支持矩阵与语义映射
+- [docs/languages/cpp.md](docs/languages/cpp.md) — C++ 子集支持矩阵与语义映射
+- [docs/ADDING_A_LANGUAGE.md](docs/ADDING_A_LANGUAGE.md) — 新增一门语言的完整接入点
+- [native/README.md](native/README.md) — 原生前端的 ABI 与目录约定
 - [docs/SAVE_SAFETY.md](docs/SAVE_SAFETY.md) — 存档安全：备份、自动存档行为、恢复与免责声明
 - [docs/BUILD.md](docs/BUILD.md) — 构建前置、路径配置、常见构建错误
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — 运行期问题排查
@@ -272,7 +270,7 @@ CppFarmer/
   执行高亮的粒度有时只能落到「整行」（生成脚本里没有一一对应的 token 时）
 - 需要随游戏更新维护补丁点；补丁失效时插件会尽量降级而不是崩游戏
 - `editor/cppfarmer_api.hpp` 只是给 IDE 的声明，**不参与游戏内编译**；能写什么仍以
-  [docs/LANGUAGE.md](docs/LANGUAGE.md) 为准，IDE 不会提示前端不支持的那些写法
+  [docs/languages/cpp.md](docs/languages/cpp.md) 为准，IDE 不会提示前端不支持的那些写法
 - 捆绑的 `winhttp.dll` 是 DLL 代理加载器，个别安全软件可能误报；可从
   [BepInEx 官方仓库](https://github.com/BepInEx/BepInEx) 自行下载同版本核对
 

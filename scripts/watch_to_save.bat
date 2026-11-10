@@ -1,5 +1,5 @@
 @echo off
-REM Transpile src\*.cpp into a game save folder and keep watching.
+REM Transpile templates\cpp\*.cpp into a game save folder and keep watching.
 REM   usage: scripts\watch_to_save.bat [SaveName]     (default: Save0)
 setlocal
 cd /d "%~dp0.."
@@ -20,4 +20,4 @@ if not exist build\cppfarmer-watch.exe (
 
 echo generating into %DEST%
 echo remember to enable "file watcher" in the game options
-build\cppfarmer-watch.exe src "%DEST%" --line-hints
+build\cppfarmer-watch.exe templates\cpp "%DEST%" --line-hints

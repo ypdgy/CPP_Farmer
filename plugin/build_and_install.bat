@@ -50,7 +50,7 @@ if not exist build\cppfarmer_native.dll (
         echo [x] build\cppfarmer_native.dll missing and g++ not found
         exit /b 1
     )
-    g++ -std=c++20 -O2 -shared -static -I cpp_front/src cpp_front/src/dll.cpp -o build\cppfarmer_native.dll || exit /b 1
+    g++ -std=c++20 -O2 -shared -static -I native/include -I native/src -I native/frontends/cpp native/src/registry.cpp native/src/cf_util.cpp native/frontends/cpp/cpp_frontend.cpp -o build\cppfarmer_native.dll || exit /b 1
 )
 
 echo [2/3] building plugin
@@ -62,6 +62,7 @@ if not exist "%OUT%" mkdir "%OUT%"
 echo [3/3] installing to %OUT%
 copy /y "plugin\bin\Release\CppFarmer.dll" "%OUT%\" >nul || exit /b 1
 copy /y "build\cppfarmer_native.dll" "%OUT%\" >nul || exit /b 1
+copy /y "plugin\pages\*.md" "%OUT%\" >nul 2>nul
 
 echo.
 echo done. start the game and check BepInEx\LogOutput.log for "C++ Farmer".

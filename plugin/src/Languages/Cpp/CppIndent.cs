@@ -30,9 +30,9 @@ namespace CppFarmer
             if (!Plugin.CfgEnabled.Value || !Plugin.CfgSmartIndent.Value) return true;
             if (__instance == null || inserted == null) return true;
             if (!inserted.EndsWith("\n", StringComparison.Ordinal)) return true;
-            if (!CppSupport.IsCppWindow(__instance)) return true;
+            if (!CppLanguage.Instance.Owns(__instance)) return true;
 
-            CodeInputField input = CppSupport.GetCodeInput(__instance);
+            CodeInputField input = CodeSupport.GetCodeInput(__instance);
             if (input == null) return true;
 
             string text = input.text;

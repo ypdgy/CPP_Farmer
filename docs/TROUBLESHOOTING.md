@@ -147,7 +147,7 @@ Enabled = false
 ## 执行高亮
 
 游戏画「当前执行位置」用的是**生成脚本**里的字符下标，而编辑器显示 C++ 源码。
-`CppBlink.cs` 在绘制入口把这两个坐标换算回源码行；`CppSupport.LineMap` 为 0 的
+`ExecutionBlink.cs` 在绘制入口把这两个坐标换算回源码行；`CodeSupport` 的行映射为 0 的
 helper/前导行会向后吸附到最近的有映射行。
 
 | 现象 | 处理 |
@@ -164,7 +164,7 @@ helper/前导行会向后吸附到最近的有映射行。
 - 右上角 **C++** 按钮：若被游戏 UI 遮挡，可用配置微调；克隆失败会退回 IMGUI 按钮
 - 文档首页链接：只在 `docs/home.md` 上生效，幂等，不写磁盘文件
 - 科技树提示：悬停节点时追加，无对应 C++ 能力的科技（纯物品/帽子）不显示
-- `cppfarmer_reference.md` / `cppfarmer_errors.md` 若放在插件目录，会**覆盖**对应的内置页，可直接改文案不必重新编译
+- 说明页正文是插件目录下的两个普通 Markdown：`cppfarmer_reference.md`、`cppfarmer_errors.md`，随包发布。改文案直接编辑这两个文件并重启游戏，**不用重新编译**；删掉它们会显示「说明页缺失」提示
 - 说明页内指向 `cppfarmer_errors` 的「常见错误与函数调用」链接走游戏的文档跳转，`<-` 与后退按钮都能用（这是游戏虚拟文档 id，不是磁盘文件）
 
 ## 配置项一览
@@ -194,7 +194,7 @@ helper/前导行会向后吸附到最近的有映射行。
 | `bp_debug.txt` | 断点映射链路（每次覆盖） |
 | `last_generated.py` | 生成脚本被游戏词法器拒绝时的转储 |
 | `cpp_unlocks.txt` | 观测到的科技树词表，游戏改版后用于校准门禁 |
-| `cppfarmer_reference.md` | 可选，自定义说明页文案 |
-| `cppfarmer_errors.md` | 可选，自定义「常见错误」页文案 |
+| `cppfarmer_reference.md` | 说明页正文（随包发布，可编辑） |
+| `cppfarmer_errors.md` | 「常见错误」页正文（随包发布，可编辑） |
 
 这些文件都可以安全删除，插件会按需重新生成。

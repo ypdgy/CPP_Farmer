@@ -36,10 +36,14 @@ BINARIES = {
         f"{PREFIX}/{PLUGIN_DIR}CppFarmer.dll",
 }
 
-# Copied into the package so players can point their IDE at the game API.
-EXTRA_DIRS = {
-    ROOT / "editor": f"{PREFIX}/editor",
-}
+# Copied into the package from the repo, not from the payload:
+#   (source directory, archive directory, file that must exist)
+# editor/      IDE headers, so players can point their editor at the game API
+# plugin/pages in-game reference pages (plain Markdown, editable without a rebuild)
+EXTRA_DIRS = (
+    (ROOT / "editor", f"{PREFIX}/editor", "cppfarmer_api.hpp"),
+    (ROOT / "plugin" / "pages", f"{PREFIX}/{PLUGIN_DIR}", "cppfarmer_reference.md"),
+)
 
 # Sanity checks: a zip without these would install a broken BepInEx.
 REQUIRED = (
@@ -84,20 +88,46 @@ def main() -> int:
         # BepInEx DLLs in BepInEx/core/ are part of the payload and must stay.
         if rel.startswith(PLUGIN_DIR):
             continue
+        # The editor assets are owned by EXTRA_DIRS below (they live in the
+        # repo, not in the payload), so a stale copy in the payload would
+        # produce duplicate zip entries.
+        if rel.startswith("editor/"):
+            continue
         entries.append((path, f"{PREFIX}/{rel}"))
 
-    for src_dir, arc_dir in EXTRA_DIRS.items():
-        if not (src_dir / "cppfarmer_api.hpp").is_file():
-            print(f"missing editor payload in {src_dir}", file=sys.stderr)
+    for src_dir, arc_dir, marker in EXTRA_DIRS:
+        if not (src_dir / marker).is_file():
+            print(f"missing {marker} in {src_dir}", file=sys.stderr)
             return 1
         for path in sorted(src_dir.rglob("*")):
             if not path.is_file():
                 continue
             rel = path.relative_to(src_dir).as_posix()
-            entries.append((path, f"{arc_dir}/{rel}"))
+            entries.append((path, arc_dir.rstrip("/") + "/" + rel))
 
     for src, arc in BINARIES.items():
         entries.append((src, arc))
+
+    # Pages must land next to the DLL: the plugin reads them from its own folder.
+    required_arcs = {
+        f"{PREFIX}/{PLUGIN_DIR}cppfarmer_reference.md",
+        f"{PREFIX}/{PLUGIN_DIR}cppfarmer_errors.md",
+    }
+    have = {arc for _, arc in entries}
+    absent_arcs = sorted(required_arcs - have)
+    if absent_arcs:
+        print("package incomplete, missing:", file=sys.stderr)
+        for arc in absent_arcs:
+            print(f"  {arc}", file=sys.stderr)
+        return 1
+
+    seen = set()
+    duplicates = [arc for _, arc in entries if arc in seen or seen.add(arc)]
+    if duplicates:
+        print("duplicate zip entries:", file=sys.stderr)
+        for arc in sorted(set(duplicates)):
+            print(f"  {arc}", file=sys.stderr)
+        return 1
 
     if OUT.exists():
         OUT.unlink()

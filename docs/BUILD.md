@@ -84,30 +84,36 @@ CXX=clang++ bash scripts/build.sh
 ## 验证
 
 ```bash
-# 单文件转译
+# 单文件转译（方言按扩展名自动选择，也可用 --lang c|cpp 指定）
 build/cppfarmer.exe examples/cpp/farm.cpp --stdout
 build/cppfarmer.exe examples/cpp/maze.cpp --check
+build/cppfarmer.exe examples/c/farm.c --stdout
+build/cppfarmer.exe tests/c/basic.c --lang c --stdout
 
 # 特性清单与行映射
 build/cppfarmer.exe tests/cpp/features.cpp --print-features
 build/cppfarmer.exe tests/cpp/features.cpp --line-map
 
-# 批量转译 + 语法近似校验
-mkdir -p /tmp/cppfarmer && ./build/cppfarmer-watch.exe examples /tmp/cppfarmer --once
+# 批量转译 + 语法近似校验（每个语言目录单独跑，输出名可能重名）
+mkdir -p /tmp/cppfarmer
+./build/cppfarmer-watch.exe examples/cpp /tmp/cppfarmer --once
+./build/cppfarmer-watch.exe examples/c /tmp/cppfarmer --once
 python -m py_compile /tmp/cppfarmer/*.py
 
-# 正向用例应 rc=0，tests/err/ 负向用例应 rc!=0
-for f in tests/cpp/features.cpp tests/cpp/inc/main.cpp; do
+# 正向用例应 rc=0，err/ 负向用例应 rc!=0
+for f in tests/cpp/features.cpp tests/cpp/inc/main.cpp tests/c/basic.c tests/c/printf.c tests/c/inc/main.c; do
     build/cppfarmer.exe "$f" --stdout >/dev/null; echo "$f rc=$?"
 done
-for f in tests/cpp/err/*.cpp; do
+for f in tests/cpp/err/*.cpp tests/c/err/*.c; do
     build/cppfarmer.exe "$f" --check >/dev/null 2>&1; rc=$?; echo "$f rc=$rc"
 done
 ```
 
 用例目录约定与完整回归脚本见 [tests/README.md](../tests/README.md)。
-`tests/cpp/err/` 是故意写错、必须报错的用例（全角标点、非法字符、位运算、缺分号、
-无效果语句等）；`tests/cpp/unicode_space.cpp` 等正向用例放在 `tests/cpp/` 下。
+`tests/<语言>/err/` 是故意写错、必须报错的用例；正向用例放在 `tests/<语言>/` 下。
+C 的负向用例集中在 `printf` 的占位符校验和 `switch` 这类未支持构造上。
+
+`.c` 与 `.cpp` 同时出现时注意输出重名：`farm.c` 与 `farm.cpp` 都会生成 `farm.py`。
 
 ## 产物
 

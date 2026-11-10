@@ -13,7 +13,7 @@ namespace CppFarmer
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "cppfarmer";
-        public const string PluginVersion = "0.3.0";
+        public const string PluginVersion = "0.4.0";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;
@@ -60,7 +60,7 @@ namespace CppFarmer
                 "Show a description when hovering C++ keywords and translated "
                 + "standard-library names, in the completion list and in the editor.");
             CfgHomeLink = Config.Bind("UI", "HomeLink", true,
-                "Add a C++ reference link to the docs home page.");
+                "Add a link to the C++ Farmer reference index on the game's docs home page.");
             CfgUnlockTooltips = Config.Bind("UI", "UnlockTooltips", true,
                 "Show which C++ calls and syntax a research unlock grants when "
                 + "hovering over it in the tech tree.");
@@ -102,6 +102,7 @@ namespace CppFarmer
             harmony.PatchAll(typeof(PatchHighlightTheme));
             harmony.PatchAll(typeof(PatchHighlightTick));
             harmony.PatchAll(typeof(PatchKeepScrollOnBlur));
+            harmony.PatchAll(typeof(PatchIndent));
             harmony.PatchAll(typeof(PatchSaveDiagnostics));
             harmony.PatchAll(typeof(PatchNoCompleteInStrings));
 

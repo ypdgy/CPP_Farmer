@@ -114,7 +114,13 @@ private:
         const std::string& s = cur().text;
         if (isTypeWord(s)) return true;
         if (s == "const") return true;
-        if (s == "struct" || s == "enum" || s == "class") return false;
+        if (s == "class") return false;
+        if (s == "struct" || s == "enum") {
+            // C elaborated type in a declaration: `struct Cell c;`.
+            // A definition in a block (`struct X { ... }`) is not a statement
+            // declaration, so require Ident Ident after the keyword.
+            return peek().kind == Tok::Ident && peek(2).kind == Tok::Ident;
+        }
         // user type: Ident followed by Ident  (Foo x)  or Ident followed by '::'
         if (peek().kind == Tok::Ident && isTypeWord(peek().text)) return false;
         if (peek().kind == Tok::Ident) return true;
@@ -147,6 +153,9 @@ private:
                checkIdent("constexpr")) {
             advance();
         }
+
+        // C elaborated type specifier: `struct Point p;` / `enum Color c;`
+        if (checkIdent("struct") || checkIdent("enum")) advance();
 
         if (checkIdent("std") && peek().kind == Tok::Punct && peek().text == "::") {
             advance();
@@ -280,20 +289,27 @@ private:
     // ------------------------------------------------------------------
     // top level
     // ------------------------------------------------------------------
-    // The editor API header only exists for IDE completion; there is nothing to
-    // import and no window to open for it. Both  #include "cppfarmer_api.hpp"
-    // and  #include <cppfarmer_api.hpp>  are dropped here.
+    // IDE-only stubs. `cppfarmer_api.hpp` (C++) and `cfarmer_api.h` (C) exist
+    // purely for editor completion and must never turn into a module import.
+    // Matching the *_api.h(pp) pattern keeps a third language from having to
+    // touch this function.
     static bool isEditorHeaderInclude(const std::string& name) {
-        const std::string expect = "cppfarmer_api.hpp";
-        size_t slash = name.find_last_of("/\\");
-        std::string base = (slash == std::string::npos) ? name : name.substr(slash + 1);
-        if (base.size() != expect.size()) return false;
-        for (size_t i = 0; i < base.size(); ++i) {
-            char a = base[i];
-            if (a >= 'A' && a <= 'Z') a = static_cast<char>(a - 'A' + 'a');
-            if (a != expect[i]) return false;
+        std::string lower;
+        lower.reserve(name.size());
+        for (char c : name) {
+            lower.push_back((c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c);
         }
-        return true;
+        const std::size_t slash = lower.find_last_of("/");
+        const std::string base =
+            (slash == std::string::npos) ? lower : lower.substr(slash + 1);
+
+        const std::string hpp = "_api.hpp";
+        const std::string h = "_api.h";
+        if (base.size() > hpp.size() &&
+            base.compare(base.size() - hpp.size(), hpp.size(), hpp) == 0) return true;
+        if (base.size() > h.size() &&
+            base.compare(base.size() - h.size(), h.size(), h) == 0) return true;
+        return false;
     }
 
     void parseTopLevel(Program& prog) {
@@ -319,7 +335,26 @@ private:
             parseEnum(prog);
             return;
         }
-        if (checkIdent("using") || checkIdent("typedef")) {
+        if (checkIdent("using")) {
+            skipDirective();
+            return;
+        }
+        if (checkIdent("typedef")) {
+            // `typedef struct { ... } Vec;` is the dominant C idiom: the struct
+            // has no tag, only the alias names it, so it must be parsed rather
+            // than skipped. Every other typedef keeps the old "accept and
+            // ignore" behaviour.
+            const std::size_t typeStart = i_;
+            advance();
+            if (checkIdent("struct") || checkIdent("class")) {
+                parseStruct(prog, true);
+                return;
+            }
+            if (checkIdent("enum")) {
+                parseEnum(prog, true);
+                return;
+            }
+            i_ = typeStart;
             skipDirective();
             return;
         }
@@ -388,14 +423,29 @@ private:
                          start.line, start.col);
     }
 
-    void parseStruct(Program& prog) {
+    // Parses `struct [Tag] [: bases] { fields };` and, when `typedefForm` is
+    // set, the C spelling `typedef struct [Tag] { fields } Alias;` -- there the
+    // alias after '}' supplies the name the generated code uses.
+    void parseStruct(Program& prog, bool typedefForm = false) {
         advance();  // struct / class
+
         StructDecl sd;
-        sd.name = expectIdent();
-        // optional inheritance
+        if (cur().kind == Tok::Ident) sd.name = expectIdent();
+
+        // optional inheritance (skipped: the subset has no virtual dispatch)
         if (checkPunct(":")) {
             while (!checkPunct("{") && !atEnd()) advance();
         }
+
+        if (!checkPunct("{")) {
+            // Forward declaration, or `typedef struct Tag Alias;` whose body is
+            // defined elsewhere: nothing to emit here.
+            if (typedefForm && cur().kind == Tok::Ident) advance();
+            expectPunct(";");
+            return;
+        }
+        if (sd.name.empty() && !typedefForm) fail("expected a struct name");
+
         expectPunct("{");
         while (!checkPunct("}") && !atEnd()) {
             if (matchIdent("public") || matchIdent("private") || matchIdent("protected")) {
@@ -411,20 +461,33 @@ private:
             sd.fields.push_back(std::move(fd));
         }
         expectPunct("}");
-        matchPunct(";");
+
+        if (typedefForm && cur().kind == Tok::Ident) sd.name = expectIdent();
+        if (typedefForm) expectPunct(";"); else matchPunct(";");
         prog.structs.push_back(std::move(sd));
     }
 
-    void parseEnum(Program& prog) {
+    // Same treatment for `typedef enum { A, B } Color;`.
+    void parseEnum(Program& prog, bool typedefForm = false) {
         advance();  // enum
         matchIdent("class");
         matchIdent("struct");
+
         EnumDecl ed;
-        ed.name = expectIdent();
-        if (checkPunct(":")) {  // enum E : int
+        if (cur().kind == Tok::Ident) ed.name = expectIdent();
+
+        if (!ed.name.empty() && checkPunct(":")) {  // enum E : int
             advance();
             parseType();
         }
+
+        if (!checkPunct("{")) {
+            if (typedefForm && cur().kind == Tok::Ident) advance();
+            expectPunct(";");
+            return;
+        }
+        if (ed.name.empty() && !typedefForm) fail("expected an enum name");
+
         expectPunct("{");
         while (!checkPunct("}") && !atEnd()) {
             std::string member = expectIdent();
@@ -436,7 +499,9 @@ private:
             if (!matchPunct(",")) break;
         }
         expectPunct("}");
-        matchPunct(";");
+
+        if (typedefForm && cur().kind == Tok::Ident) ed.name = expectIdent();
+        if (typedefForm) expectPunct(";"); else matchPunct(";");
         prog.enums.push_back(std::move(ed));
     }
 

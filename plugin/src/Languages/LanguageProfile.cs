@@ -70,9 +70,6 @@ namespace CppFarmer
         /// <summary>Markdown for a virtual document id, or null if this profile has none.</summary>
         public virtual string BuildDoc(string docId) => null;
 
-        /// <summary>Line added to the game's docs home page, or null.</summary>
-        public virtual string HomeLinkText => null;
-
         // ------------------------------------------------------------------
         // Harmony patches owned by this language
         // ------------------------------------------------------------------
@@ -129,6 +126,18 @@ namespace CppFarmer
         /// </summary>
         public virtual string Colorize(string code, ColorTheme theme, string searchWord,
             int searchIndex, (int index, int length) imeCompositionRange) => null;
+
+        /// <summary>
+        /// True when the line body opens a block, so pressing Enter should indent
+        /// one more level. C-family languages return "ends with '{'".
+        /// </summary>
+        public virtual bool OpensBlock(string body) => false;
+
+        /// <summary>
+        /// Removes a trailing line comment so <see cref="OpensBlock"/> is not
+        /// fooled by "if (x) { // note".
+        /// </summary>
+        public virtual string StripTrailingComment(string body) => body;
 
         /// <summary>Description of a keyword or API name, or null when unknown.</summary>
         public virtual string DescribeWord(string word) => null;

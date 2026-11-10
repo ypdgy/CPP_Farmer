@@ -5,25 +5,30 @@ using UnityEngine;
 
 namespace CppFarmer
 {
-    internal static class CppHighlighter
+    /// <summary>
+    /// Applies a language's syntax colouring to one window.
+    ///
+    /// The game colours editor text with `CodeUtilities.SyntaxColor2`, whose rule
+    /// table is written for its own language:
+    ///
+    ///     (?&lt;comment&gt;#.*)|(?&lt;string&gt;...)|(?&lt;keyword&gt;(?:in|for|def|...))|...
+    ///
+    /// `#.*` treats every line starting with '#' as a comment, so `#include` shows
+    /// up grey while `//` -- the actual comment in C-family languages -- gets no
+    /// colour at all.
+    ///
+    /// This mirrors that implementation exactly (same &lt;noparse&gt; wrapping, same
+    /// search highlighting, same IME underline) but takes the rule table from the
+    /// owning profile. Group names are the contract: `string`, `comment`,
+    /// `preproc`, `keyword`, `function`, `builtin`, `number`.
+    /// </summary>
+    internal static class SyntaxColoring
     {
-        // Order matters: strings come first so that '//' inside a literal is not
-        // taken for a comment, and the preprocessor rule sits before keywords so
-        // that `include` is coloured as part of the directive.
-        private const string Rules =
-            @"(?<string>""(?:\\.|[^""\\])*""|'(?:\\.|[^'\\])*')" +
-            @"|(?<comment>//[^\n]*)" +
-            @"|(?<preproc>(?m:^[ \t]*#[^\n]*))" +
-            @"|(?<keyword>\b(?:alignas|alignof|auto|bool|break|case|catch|char|class|const|constexpr|continue|default|delete|do|double|else|enum|explicit|extern|false|float|for|friend|goto|if|inline|int|long|mutable|namespace|new|noexcept|nullptr|operator|override|private|protected|public|register|return|short|signed|sizeof|static|struct|switch|template|this|throw|true|try|typedef|typename|union|unsigned|using|virtual|void|volatile|while)\b)" +
-            @"|(?<function>\b[a-zA-Z_]\w*(?=\())" +
-            @"|(?<builtin>\b(?:North|East|South|West|Entities|Items|Grounds|Unlocks|Leaderboards|Hats)\b)" +
-            @"|(?<number>\b(?:0[xX][0-9a-fA-F]+|(?:\d*\.)?\d+)\b)";
-
-        public static string Colorize(string code, ColorTheme theme, string searchWord,
-            int searchIndex, (int index, int length) imeCompositionRange)
+        public static string Colorize(string code, string rules, ColorTheme theme,
+            string searchWord, int searchIndex, (int index, int length) imeCompositionRange)
         {
             if (code == null) return string.Empty;
-            if (theme == null) return code;
+            if (theme == null || string.IsNullOrEmpty(rules)) return code;
 
             if (imeCompositionRange.length > 0 && searchIndex >= imeCompositionRange.index)
             {
@@ -31,8 +36,8 @@ namespace CppFarmer
             }
 
             string pattern = string.IsNullOrEmpty(searchWord)
-                ? Rules
-                : "(?<search>(?i:" + Regex.Escape(searchWord) + ")(?-i))|" + Rules;
+                ? rules
+                : "(?<search>(?i:" + Regex.Escape(searchWord) + ")(?-i))|" + rules;
 
             var palette = theme.code;
             var sb = new StringBuilder("<noparse>");

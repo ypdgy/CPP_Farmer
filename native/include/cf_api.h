@@ -40,7 +40,8 @@ typedef struct CfLanguage {
     cf_compile_fn compile;
 } CfLanguage;
 
-// Version string of the native library, e.g. "cppfarmer 0.3.0".
+// Version string of the native library, e.g. "cppfarmer 0.4.0". Keep it in step
+// with PluginVersion and the csproj <Version>.
 CF_EXPORT const char* cf_version(void);
 
 // Introspection. Index 0 is the default language: it is used for windows whose

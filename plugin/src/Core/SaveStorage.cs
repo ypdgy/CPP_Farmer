@@ -261,6 +261,10 @@ namespace CppFarmer
                 foreach (string orphan in Directory.GetFiles(savePath, "*" + language.StorageSuffix))
                 {
                     string name = Path.GetFileName(orphan);
+                    // GetFiles("*" + suffix) can be loose on Windows (8.3 short
+                    // names); never delete a file that belongs to another language.
+                    if (!name.EndsWith(language.StorageSuffix, StringComparison.OrdinalIgnoreCase))
+                        continue;
                     if (!IsStorageName(name) || code.ContainsKey(name)) continue;
                     try
                     {

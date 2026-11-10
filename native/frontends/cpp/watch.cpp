@@ -62,10 +62,15 @@ bool writeAtomic(const fs::path& target, const std::string& data) {
     return true;
 }
 
-bool isSourceFile(const fs::path& p) {
+std::string extensionOf(const fs::path& p) {
     std::string ext = p.extension().string();
     for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".c++";
+    return ext;
+}
+
+bool isSourceFile(const fs::path& p) {
+    const std::string ext = extensionOf(p);
+    return ext == ".cpp" || ext == ".cc" || ext == ".cxx" || ext == ".c++" || ext == ".c";
 }
 
 std::string stemOf(const fs::path& p) { return p.stem().string(); }
@@ -81,6 +86,8 @@ bool compileOne(const fs::path& src, const fs::path& outDir, bool lineHints) {
     cppfarmer::Options opt;
     opt.sourceName = src.filename().string();
     opt.emitLineHints = lineHints;
+    // Same rule as the plugin: a .c window is compiled as C.
+    if (extensionOf(src) == ".c") opt.dialect = cppfarmer::Dialect::C;
 
     try {
         cppfarmer::Lexer lexer(text);
@@ -115,7 +122,7 @@ bool compileOne(const fs::path& src, const fs::path& outDir, bool lineHints) {
 
 void usage() {
     std::cout
-        << "cppfarmer-watch - keep .cpp sources transpiled into a target folder\n"
+        << "cppfarmer-watch - keep .c/.cpp sources transpiled into a target folder\n"
         << "\n"
         << "usage: cppfarmer-watch <srcDir> <outDir> [options]\n"
         << "\n"

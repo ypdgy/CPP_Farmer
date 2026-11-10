@@ -12,7 +12,8 @@ namespace CppFarmer
     /// reached by field name. Instead one of them is located through its persistent
     /// UnityEvent target ("CallAddNewDocsWindow"), then cloned: the clone inherits
     /// the same sprite, rounded shape, size and hover colours as the rest of the
-    /// bar. Only the glyph is replaced with a "C++" label.
+    /// bar. Only the glyph is replaced with a "C++" label, and the click opens
+    /// the index page rather than one language's reference.
     /// </summary>
     internal class HelpButton : MonoBehaviour
     {
@@ -65,7 +66,7 @@ namespace CppFarmer
                 PlaceLeftOfSiblings(clone, template);
 
                 _button = clone;
-                Plugin.Log.LogInfo("C++ reference button added to the toolbar");
+                Plugin.Log.LogInfo("C++ Farmer reference button added to the toolbar");
             }
             catch (Exception e)
             {
@@ -273,11 +274,10 @@ namespace CppFarmer
                 Workspace workspace = MainSim.Inst == null ? null : MainSim.Inst.workspace;
                 if (workspace == null) return;
 
-                // Index 0 is the default language; a multi-language build would
-                // replace this with a small menu.
-                string docId = LanguageRegistry.Default?.ReferenceDocId;
-                if (string.IsNullOrEmpty(docId)) return;
-                workspace.AddNewDocsWindow(docId, Vector2.zero);
+                // The index page, not the default language's reference: it lists
+                // every language so the button cannot look like it only supports
+                // one of them.
+                workspace.AddNewDocsWindow(ReferenceIndex.DocId, Vector2.zero);
             }
             catch (Exception e)
             {

@@ -18,6 +18,7 @@ namespace CppFarmer
         static LanguageRegistry()
         {
             Register(new CppLanguage());
+            Register(new CLanguage());
             // Register(new RustLanguage());   // add front-ends here
         }
 
@@ -137,13 +138,14 @@ namespace CppFarmer
             return DocOwner(docId)?.BuildDoc(docId);
         }
 
-        /// <summary>Links to add to the game's docs home page, default language first.</summary>
+        /// <summary>
+        /// Links to add to the game's docs home page: a single entry point to the
+        /// index. One link per language made the home page look like two unrelated
+        /// mods and left no place to explain the difference.
+        /// </summary>
         public static IEnumerable<string> HomeLinks()
         {
-            foreach (LanguageProfile profile in Ordered)
-            {
-                if (!string.IsNullOrEmpty(profile.HomeLinkText)) yield return profile.HomeLinkText;
-            }
+            if (!string.IsNullOrEmpty(ReferenceIndex.HomeLink)) yield return ReferenceIndex.HomeLink;
         }
     }
 }

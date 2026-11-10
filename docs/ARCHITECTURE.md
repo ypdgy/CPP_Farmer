@@ -73,12 +73,13 @@ plugin/src/
 │  ├─ EditorCompletion.cs 补全候选分发（按 profile）
 │  ├─ EditorHighlight.cs  语法着色重绘（按 profile）
 │  ├─ EditorScrollGuard.cs 失焦不跳回第一行
-│  └─ DocRouter.cs        虚拟文档路由、首页链接
+│  ├─ DocRouter.cs        虚拟文档路由、首页链接
+│  └─ ReferenceIndex.cs   说明总览页（按钮打开的入口）
 ├─ Languages/
 │  ├─ LanguageProfile.cs  抽象基类：扩展名、存档后缀、各编辑器钩子
 │  ├─ LanguageRegistry.cs 注册表：按文件名找语言（最长后缀优先）
 │  └─ Cpp/                C++ 的实现：词表、着色规则、缩进、include、帮助页、提示
-└─ Ui/HelpButton.cs       右上角说明页按钮
+└─ Ui/HelpButton.cs       右上角按钮，打开说明总览（ReferenceIndex）
 ```
 
 **核心不变量**：`Core/` 里不允许出现某个语言的 id、扩展名或关键字。所有语言差异都经
@@ -113,7 +114,7 @@ plugin/src/
 | `CodeWindow.InsertNewLineIndentation` | `{` 结尾的行回车后多缩进一级 | C++ 专属 |
 | `TooltipUtils.GetWordTooltip` | 补全列表 / 悬停时补词条说明 | C++ 专属 |
 | `TooltipUtils.UnlockTooltip` | 科技树悬停追加语言能力 | C++ 专属 |
-| `Localizer.LoadDoc` | 回答各语言的虚拟文档 id；给文档首页加链接 | 通用分发 |
+| `Localizer.LoadDoc` | 回答说明总览 + 各语言的虚拟文档 id；给文档首页加一条总入口链接 | 通用分发 |
 | `BlinkManager.GetWorldWordRect` / `GetWorldLineRect` | 执行高亮坐标 → 源码坐标 | 通用 |
 
 UI 补丁按「窗口属于哪个 profile」过滤，`.py` 窗口行为完全不变。渲染页面只做**内存内**字符串改写，

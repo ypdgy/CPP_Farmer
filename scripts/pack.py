@@ -112,6 +112,10 @@ def main() -> int:
     required_arcs = {
         f"{PREFIX}/{PLUGIN_DIR}cppfarmer_reference.md",
         f"{PREFIX}/{PLUGIN_DIR}cppfarmer_errors.md",
+        f"{PREFIX}/{PLUGIN_DIR}cfarmer_reference.md",
+        f"{PREFIX}/{PLUGIN_DIR}cfarmer_errors.md",
+        f"{PREFIX}/{PLUGIN_DIR}farmer_index.md",
+        f"{PREFIX}/editor/cfarmer_api.h",
     }
     have = {arc for _, arc in entries}
     absent_arcs = sorted(required_arcs - have)

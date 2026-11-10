@@ -5,6 +5,10 @@
 
 > 本文面向改代码的人，不面向玩家。玩家视角见 [README](../README.md)。
 
+已实现的两种语言：`cpp`（C++ 子集）与 `c`（C 方言）。注意 **C 没有单独的解析器**：
+它复用 `frontends/cpp/`，只在 codegen 里切 `Dialect::C`。如果新语言的语法与现有前端足够接近，
+优先考虑这条路，而不是复制 3000 行解析器。
+
 ---
 
 ## 0. 一览：要动的四个地方
@@ -216,9 +220,10 @@ static LanguageRegistry()
 页面正文**不进 DLL**，而是插件目录下的普通 Markdown，随包发布：
 
 ```
-仓库                               发布包 / 安装后
-plugin/pages/cppfarmer_reference.md  →  BepInEx/plugins/CppFarmer/cppfarmer_reference.md
-plugin/pages/cppfarmer_errors.md     →  BepInEx/plugins/CppFarmer/cppfarmer_errors.md
+仓库                                 发布包 / 安装后
+plugin/pages/farmer_index.md          →  BepInEx/plugins/CppFarmer/farmer_index.md   ← 总览
+plugin/pages/cppfarmer_reference.md   →  BepInEx/plugins/CppFarmer/cppfarmer_reference.md
+plugin/pages/cppfarmer_errors.md      →  BepInEx/plugins/CppFarmer/cppfarmer_errors.md
 ```
 
 profile 只负责两件事：
@@ -237,8 +242,23 @@ profile 只负责两件事：
 渲染器只支持标题、粗体、行内代码、链接、`<columns>`、`<unlock=...>`。**行内代码的反引号必须成对**：
 游戏的渲染器按反引号整体切分，落单会让后面整页变成代码块。这是踩过的坑。
 
-`HomeLinkText` 返回一行 `[Rust Farmer 说明](rustfarmer_reference)`，会被插到文档首页
-`<columns>` 之后。插入文本里**不要有反引号**。
+### 总览页要手动加一节
+
+右上角按钮打开的是 `farmer_index.md`（`ReferenceIndex.DocId`），它**不属于任何语言**，
+所以新增语言时要在里面加一节：
+
+```markdown
+## Rust（`.rs` 窗口）
+
+- [Rust 语言说明](rustfarmer_reference) — 支持哪些写法
+- [Rust 常见错误](rustfarmer_errors) — 会被拒绝的写法
+```
+
+按钮和文档首页都不必改：首页只插一条 `ReferenceIndex.HomeLink` 总入口，
+再从这里分发。新增分页文件时，记得在 `scripts/pack.py` 的 `required_arcs` 里登记，
+缺页会直接打包失败。
+
+插入到文档首页的文本里**不要有反引号**：渲染器按反引号切分整页，落单会让后续全变代码块。
 
 ---
 

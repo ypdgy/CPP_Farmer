@@ -17,11 +17,13 @@
 
 namespace {
 
+using cppfarmer::Dialect;
+
 // Compiles `src`. On success returns 0 and writes the generated script to *out.
 // On failure returns a non-zero code and writes "file:line:col: message" to *err.
 // Parameter order must match cf_compile_fn exactly.
-int compile(const char* src, const char* unlocksCsv, char** out,
-            char** lineMapCsv, char** err) {
+int compileWith(Dialect dialect, const char* src, const char* unlocksCsv, char** out,
+                char** lineMapCsv, char** err) {
     if (!src) return 9;
     try {
         cppfarmer::Lexer lexer(src);
@@ -32,6 +34,7 @@ int compile(const char* src, const char* unlocksCsv, char** out,
 
         cppfarmer::Options opt;
         opt.emitLineHints = false;
+        opt.dialect = dialect;
         cppfarmer::CodeGen gen(opt);
         std::vector<std::string> unlocks = cf_split_csv(unlocksCsv);
         if (!unlocks.empty()) gen.setUnlocks(unlocks);
@@ -71,11 +74,28 @@ int compile(const char* src, const char* unlocksCsv, char** out,
     }
 }
 
+int compileCpp(const char* src, const char* unlocksCsv, char** out,
+               char** lineMapCsv, char** err) {
+    return compileWith(Dialect::Cpp, src, unlocksCsv, out, lineMapCsv, err);
+}
+
+int compileC(const char* src, const char* unlocksCsv, char** out,
+             char** lineMapCsv, char** err) {
+    return compileWith(Dialect::C, src, unlocksCsv, out, lineMapCsv, err);
+}
+
 }  // namespace
 
 const CfLanguage& cf_cpp_language() {
     // Extensions are advertised to the plugin for logging and conflict checks;
     // the plugin's own LanguageProfile decides which windows it claims.
-    static const CfLanguage language = {"cpp", "C++", ".cpp;.cxx;.cc;.c++;.hpp", &compile};
+    static const CfLanguage language = {"cpp", "C++", ".cpp;.cxx;.cc;.c++;.hpp", &compileCpp};
+    return language;
+}
+
+const CfLanguage& cf_c_language() {
+    // C shares the parser with C++: the subset it needs is a subset of what the
+    // C++ front-end already accepts. The dialect flag only changes printf.
+    static const CfLanguage language = {"c", "C", ".c", &compileC};
     return language;
 }

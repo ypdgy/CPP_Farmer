@@ -1,8 +1,16 @@
 // Code generator: lowers the C++ subset AST to The Farmer Was Replaced script.
+//
+// The same generator serves both registered languages. `Dialect::C` only
+// changes the few places where C and C++ genuinely differ in this subset
+// (currently: printf with format specifiers), so the parser and the AST stay
+// shared. Anything C accepts but C++ does not is a superset, which is harmless:
+// a .c file may still use `std::vector` if the player wants to.
 #pragma once
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <optional>
@@ -16,6 +24,8 @@
 
 namespace cppfarmer {
 
+enum class Dialect { Cpp, C };
+
 class CompileError : public std::runtime_error {
 public:
     CompileError(const std::string& msg, int line)
@@ -26,6 +36,7 @@ public:
 struct Options {
     bool emitLineHints = false;   // write "# src:Lnn" comments for debugging
     std::string sourceName = "main.cpp";
+    Dialect dialect = Dialect::Cpp;
 };
 
 class CodeGen {
@@ -50,15 +61,34 @@ public:
         for (const auto& sd : prog.structs) genStruct(sd);
         for (const auto& ed : prog.enums) genEnum(ed);
         for (const auto& gv : prog.globals) genGlobal(gv.decl);
-        for (const auto& fn : prog.functions) genFunction(fn);
+        // The entry point becomes top-level statements whenever that cannot change
+        // behaviour. A `def` -- any function definition -- needs the game's
+        // 'functions' unlock, which a fresh save has not researched yet, and
+        // wrapping main in one would make the language unusable at the start of a
+        // run. Every other function still needs that unlock, because there is no
+        // other way to reuse code in the target language.
+        const FuncDecl* entry = nullptr;
+        for (const auto& fn : prog.functions) {
+            if (!prog.entry.empty() && fn.name == prog.entry) {
+                entry = &fn;
+                continue;
+            }
+            genFunction(fn);
+        }
 
-        if (!prog.entry.empty()) {
-            // Compiler-generated entry call: it has no source line of its own, and
-            // leaving curLine_ pointing at the last function body would make the
-            // line table claim it came from there -- which misleads breakpoint
-            // mapping into snapping a breakpoint onto that function's last line.
-            curLine_ = 0;
-            line(0, prog.entry + "()");
+        if (entry != nullptr && canHoistEntry(*entry)) {
+            genEntryBody(*entry);
+        } else {
+            if (entry != nullptr) genFunction(*entry);
+            if (!prog.entry.empty()) {
+                // Compiler-generated entry call: it has no source line of its own,
+                // and leaving curLine_ pointing at the last function body would
+                // make the line table claim it came from there -- which misleads
+                // breakpoint mapping into snapping a breakpoint onto that
+                // function's last line.
+                curLine_ = 0;
+                line(0, prog.entry + "()");
+            }
         }
 
         std::string body = join(lines_);
@@ -95,6 +125,12 @@ private:
     std::vector<int> lineMap_;
     bool hasImports_ = false;
     int curLine_ = 0;
+    // True while main's body is being emitted at the top level, where a `return`
+    // statement would be a syntax error in the generated script.
+    bool suppressingReturn_ = false;
+    // 1 while emitting a function body, including a hoisted main. 0 means "global
+    // scope", where no statement-level construct may be emitted.
+    int functionDepth_ = 0;
 
     std::map<std::string, const StructDecl*> structs_;
     std::map<std::string, std::string> enumMemberToQualified_;
@@ -152,13 +188,31 @@ private:
     // is exposed through MainSim.GetUnlockedKeywords(). When the caller supplies
     // that set we refuse to emit code the player cannot run yet, and say which
     // unlock is missing instead of letting the game throw a bare parse error.
+    // The game shows this text inside its own editor, so name the unlock the way
+    // the tech tree does instead of echoing the internal key.
+    static std::string unlockLabel(const std::string& key) {
+        if (key == "functions") return "函数定义";
+        if (key == "dictionaries") return "字典";
+        if (key == "lists") return "列表";
+        if (key == "import") return "导入其它文件";
+        if (key == "loops") return "循环";
+        if (key == "variables") return "变量";
+        if (key == "operators") return "运算符";
+        return key;
+    }
+
     void requireUnlock(const std::string& key, int line) {
         required_.insert(key);
         if (!checkUnlocks_) return;
         if (unlocked_.count(key)) return;
-        err("this construct needs the '" + key + "' unlock, which is not unlocked yet "
-            "in the current save",
-            line);
+
+        std::string msg = "这个写法需要先解锁「" + unlockLabel(key)
+            + "」，当前存档还没解锁";
+        if (key == "functions") {
+            msg += "。main() 会作为顶层代码执行，不需要解锁；"
+                   "只有自定义函数、struct / class 才用到这个科技";
+        }
+        err(msg, line);
     }
 
     // ------------------------------------------------------------------
@@ -304,9 +358,67 @@ private:
         }
     }
 
+    // ------------------------------------------------------------------
+    // entry point
+    // ------------------------------------------------------------------
+    // A return inside an if/loop cannot be hoisted: the target language only
+    // allows `return` inside a function, so only statements directly in main's
+    // body may carry one.
+    static bool hasNestedReturn(const Stmt& s, bool allowReturn) {
+        if (s.kind == StmtKind::Return) return !allowReturn;
+        // A block passes its own flag down: main's body is a Block, and its
+        // direct statements are exactly the ones that may carry a return.
+        for (const auto& child : s.body) {
+            if (child && hasNestedReturn(*child, allowReturn)) return true;
+        }
+        if (s.thenBranch && hasNestedReturn(*s.thenBranch, false)) return true;
+        if (s.elseBranch && hasNestedReturn(*s.elseBranch, false)) return true;
+        if (s.init && hasNestedReturn(*s.init, false)) return true;
+        return false;
+    }
+
+    // Dropping a return is only safe when nothing follows it, otherwise the
+    // statements after it would suddenly run.
+    static bool trailingReturnsOnly(const Stmt& block) {
+        bool sawReturn = false;
+        for (const auto& child : block.body) {
+            if (!child) continue;
+            if (child->kind == StmtKind::Return) {
+                sawReturn = true;
+                continue;
+            }
+            if (sawReturn) return false;
+        }
+        return true;
+    }
+
+    static bool canHoistEntry(const FuncDecl& fn) {
+        if (!fn.body) return false;
+        if (!fn.params.empty()) return false;   // int main(int argc, char** argv)
+        if (hasNestedReturn(*fn.body, true)) return false;
+        if (!trailingReturnsOnly(*fn.body)) return false;
+        return true;
+    }
+
+    void genEntryBody(const FuncDecl& fn) {
+        curLine_ = fn.line;
+        // The body is emitted at column 0, but it is still "inside main": anything
+        // that needs to know whether statements are allowed (ternary lowering,
+        // for instance) must not look at the indentation.
+        ++functionDepth_;
+        pushScope();
+        suppressingReturn_ = true;
+        bool empty = genBody(*fn.body, 0);
+        suppressingReturn_ = false;
+        popScope();
+        --functionDepth_;
+        if (empty) line(0, "# empty entry point");
+    }
+
     void genFunction(const FuncDecl& fn) {
         requireUnlock("functions", fn.line);
         curLine_ = fn.line;
+        ++functionDepth_;
         pushScope();
         std::string params;
         for (std::size_t i = 0; i < fn.params.size(); ++i) {
@@ -323,6 +435,7 @@ private:
         if (empty) line(1, "pass");
         line(0, "");
         popScope();
+        --functionDepth_;
     }
 
     int scopeDepthGuard_ = 0;
@@ -402,6 +515,11 @@ private:
                 return;
             }
             case StmtKind::Return:
+                // The entry point is hoisted to the top level so the script does
+                // not need a `def` (function definitions require the game's
+                // 'functions' unlock, which a fresh save does not have). A
+                // top-level `return` has no meaning there and is dropped.
+                if (suppressingReturn_) return;
                 if (s.value) {
                     line(indent, "return " + expr(*s.value));
                 } else {
@@ -455,8 +573,11 @@ private:
     void emitAssign(const std::string& target, const Type& t, const Expr& init,
                     int indent = 0) {
         if (init.kind == ExprKind::Ternary) {
-            if (indent == 0) {
-                err("conditional expression outside a statement is not supported", init.line);
+            // A ternary lowers to if/else, which is legal at the top level of the
+            // generated script too -- but only once we are emitting statements.
+            // A global initialiser runs before any statement, so it stays refused.
+            if (functionDepth_ == 0) {
+                err("conditional expression outside a function is not supported", init.line);
             }
             // Every branch assigns, so no zero-initialisation is needed first.
             emitTernaryAssign(target, init, indent);
@@ -534,6 +655,10 @@ private:
     void genExprStmt(const Expr& e, int indent) {
         // std::cout << a << b;  ->  print(a, b)
         if (isOutputStream(e)) {
+            if (opt_.dialect == Dialect::C) {
+                err("C 里没有 cout / 输出流；请用 printf(\"...\", ...) 或 print(...)",
+                    e.line);
+            }
             std::vector<const Expr*> parts;
             flattenStream(e, parts);
             std::string args;
@@ -946,6 +1071,93 @@ private:
         err("unsupported unary operator '" + op + "'", e.line);
     }
 
+    // printf with a format string is lowered into string concatenation:
+    //   printf("x=%d items", n)  ->  print("x=" + str(n) + " items")
+    //
+    // The target language has str() and string + string (it concatenates when
+    // both operands are strings), so a format string lowers exactly. Width and
+    // precision flags are consumed by the scanner but not applied: the game
+    // prints floats its own way, and silently emitting wrong digits would be
+    // worse than dropping the padding.
+    //
+    // Only reached for Dialect::C. Any mismatch between placeholders and
+    // arguments is a compile error, never a silently mangled line.
+    std::string printfCall(const Expr& e) {
+        if (e.args.empty()) err("printf 至少需要一个格式字符串", e.line);
+
+        const Expr& fmt = *e.args[0];
+        if (fmt.kind != ExprKind::StringLit) {
+            err("printf 的格式串必须是字符串字面量，否则无法在编译期校验占位符", e.line);
+        }
+
+        auto isIn = [](const char* set, char c) {
+            return c != '\0' && std::strchr(set, c) != nullptr;
+        };
+
+        const std::string& s = fmt.sval;
+        std::vector<std::string> parts;
+        std::string literal;
+        std::size_t arg = 1;
+
+        for (std::size_t i = 0; i < s.size(); ++i) {
+            if (s[i] != '%') {
+                literal.push_back(s[i]);
+                continue;
+            }
+
+            if (i + 1 >= s.size()) err("printf 的格式串以 % 结尾", e.line);
+            if (s[i + 1] == '%') {          // literal percent sign
+                literal.push_back('%');
+                ++i;
+                continue;
+            }
+
+            std::size_t j = i + 1;
+            while (j < s.size() && isIn("-+ #0", s[j])) ++j;                 // flags
+            while (j < s.size() && std::isdigit(static_cast<unsigned char>(s[j]))) ++j;
+            if (j < s.size() && s[j] == '.') {                               // precision
+                ++j;
+                while (j < s.size() && std::isdigit(static_cast<unsigned char>(s[j]))) ++j;
+            }
+            while (j < s.size() && isIn("hljztL", s[j])) ++j;                // length
+            if (j >= s.size()) err("printf 的格式串不完整", e.line);
+
+            // Only conversions the target language can reproduce exactly.
+            // %x/%o would silently print decimal, and %e/%g stay plain decimals,
+            // so they are refused instead of producing wrong digits.
+            const char conv = s[j];
+            if (!isIn("diufsc", conv)) {
+                err(std::string("printf 暂不支持 %") + conv
+                    + " 这个转换符；可用 %d %i %u %f %s %c 或 %%", e.line);
+            }
+            if (arg >= e.args.size()) err("printf 的占位符比参数多", e.line);
+
+            if (!literal.empty()) {
+                parts.push_back(quote(literal));
+                literal.clear();
+            }
+            // A string argument needs no str() round trip; keep it literal so
+            // `printf("%s", "x")` lowers to a plain concatenation.
+            const Expr& value = *e.args[arg];
+            if (conv == 'c' && value.kind != ExprKind::CharLit) {
+                err("printf 的 %c 需要字符字面量（如 'A'）；整数不会被自动转成字符", e.line);
+            }
+            const bool literal = value.kind == ExprKind::StringLit ||
+                                 value.kind == ExprKind::CharLit;
+            parts.push_back(literal ? quote(value.sval)
+                                    : "str(" + expr(value) + ")");
+            ++arg;
+            i = j;
+        }
+
+        if (!literal.empty()) parts.push_back(quote(literal));
+        if (arg != e.args.size()) err("printf 的参数比占位符多", e.line);
+
+        std::string out = parts.empty() ? "\"\"" : parts[0];
+        for (std::size_t k = 1; k < parts.size(); ++k) out += " + " + parts[k];
+        return "print(" + out + ")";
+    }
+
     std::string call(const Expr& e) {
         std::string args;
         for (std::size_t i = 0; i < e.args.size(); ++i) {
@@ -1005,10 +1217,12 @@ private:
         }
         if (f == "random" && e.args.empty()) return "random()";
         if (f == "printf") {
-            // C programmers reach for printf first. Only the literal-only form is
-            // supported: format specifiers would need argument substitution that
-            // the target language cannot express in one call, and silently
-            // printing "%d" would be worse than refusing.
+            // In a .c window printf is the normal way to print, so the format
+            // string is decoded at compile time into string concatenation.
+            if (opt_.dialect == Dialect::C) return printfCall(e);
+
+            // In C++ mode only the literal-only form is accepted: the message
+            // below points at std::cout, which is the idiomatic spelling there.
             if (e.args.size() == 1) {
                 const Expr& a = *e.args[0];
                 bool hasSpecifier = false;

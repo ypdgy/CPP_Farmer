@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <iostream>
 
 // ---- directions ----------------------------------------------------
 const int North = 0;

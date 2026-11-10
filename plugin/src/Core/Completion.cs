@@ -1,62 +1,43 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using HarmonyLib;
-using UnityEngine;
 
 namespace CppFarmer
 {
     /// <summary>
-    /// Word list used by the in-game code completer for .cpp windows.
+    /// Completion vocabulary for windows written in a compiled language.
     ///
     /// The game builds its candidate list from Python keywords plus every builtin
-    /// it knows about. For a C++ file that list is actively misleading, so we
-    /// rebuild it: identifiers from the current file first, then C++ keywords,
-    /// then the game's builtins and enum names (which C++ code still needs,
-    /// because world access goes through them).
+    /// it knows about. For a C or C++ file that list is actively misleading, so
+    /// it is rebuilt as: identifiers in this file first, then the language's own
+    /// keywords, then the game's builtins and enum names (world access still goes
+    /// through those).
+    ///
+    /// The keyword table belongs to the language profile; everything else here is
+    /// shared, including the rule that a preprocessor line contributes no
+    /// identifiers.
     /// </summary>
-    internal static class CppWords
+    internal static class Completion
     {
         /// <summary>
-        /// Words the front-end actually accepts. Valid C++ that it rejects on
-        /// purpose (switch/case/sizeof/new/delete/operator/this/virtual/
-        /// template/namespace, and the std::set / std::pair types) stays out:
-        /// offering them here would only walk the player into a compile error.
-        /// Writing one by hand is still reported by name, with the reason.
-        /// </summary>
-        private static readonly string[] Keywords =
-        {
-            // types
-            "int", "float", "double", "bool", "char", "void", "auto", "long",
-            "short", "unsigned", "signed", "size_t", "const", "constexpr",
-            "static", "inline", "struct", "enum", "class", "typedef", "using",
-            "public", "private", "protected",
-            // statements
-            "if", "else", "for", "while", "do", "break", "continue", "return",
-            "nullptr", "true", "false",
-            // containers
-            "vector", "map", "array", "string",
-            // game values that C++ code uses directly
-            "None", "True", "False",
-        };
-
-        /// <summary>
         /// Names the game offers that only make sense in its own language.
-        /// They stay out of the C++ list so the completer stops suggesting them.
+        /// They stay out of every compiled language's list so the completer stops
+        /// suggesting them.
         /// </summary>
-        private static readonly HashSet<string> NotInCpp = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "def", "elif", "import", "from", "as", "global", "lambda", "yield",
-            "with", "try", "except", "finally", "raise", "assert", "del", "is",
-            "async", "await", "nonlocal", "pass", "and", "or", "not", "in",
-        };
+        private static readonly HashSet<string> NotInSourceLanguage =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "def", "elif", "import", "from", "as", "global", "lambda", "yield",
+                "with", "try", "except", "finally", "raise", "assert", "del", "is",
+                "async", "await", "nonlocal", "pass", "and", "or", "not", "in",
+            };
 
         /// <summary>
-        /// The only names from the game's own list worth offering in C++.
-        /// GetWordList mixes builtins with GetUnlockedKeywords() (every Python
-        /// keyword), tokenizedIdentifiers, cachedProgram.allVars -- variables of
-        /// the *generated* script -- and a hard-coded "__name__". A blacklist can
-        /// never cover all of that, so Rebuild uses a whitelist instead.
+        /// The only names from the game's own list worth offering in a compiled
+        /// language. GetWordList mixes builtins with GetUnlockedKeywords() (every
+        /// Python keyword), tokenizedIdentifiers, cachedProgram.allVars --
+        /// variables of the *generated* script -- and a hard-coded "__name__".
+        /// A blacklist can never cover all of that, so Rebuild uses a whitelist.
         /// </summary>
         private static readonly HashSet<string> GameValues =
             new HashSet<string>(StringComparer.Ordinal)
@@ -69,7 +50,7 @@ namespace CppFarmer
         {
             if (string.IsNullOrEmpty(word)) return false;
             if (word.StartsWith("__", StringComparison.Ordinal)) return false;  // __name__, __builtins__ ...
-            if (NotInCpp.Contains(word)) return false;
+            if (NotInSourceLanguage.Contains(word)) return false;
             if (GameValues.Contains(word)) return true;
 
             try
@@ -84,7 +65,14 @@ namespace CppFarmer
             return false;
         }
 
-        public static List<string> Rebuild(List<string> original, string source)
+        /// <summary>
+        /// Rebuilds the whole candidate list for a window.
+        /// <paramref name="keywords"/> comes from the owning language profile and
+        /// must only contain spellings that front-end actually accepts: offering
+        /// a rejected construct would walk the player straight into an error.
+        /// </summary>
+        public static List<string> Rebuild(List<string> original, string source,
+            string[] keywords)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var result = new List<string>(512);
@@ -96,15 +84,19 @@ namespace CppFarmer
                 if (seen.Add(ident)) result.Add(ident);
             }
 
-            // 2. C++ keywords
-            foreach (string kw in Keywords)
+            // 2. the language's keywords
+            if (keywords != null)
             {
-                if (seen.Add(kw)) result.Add(kw);
+                foreach (string kw in keywords)
+                {
+                    if (seen.Add(kw)) result.Add(kw);
+                }
             }
 
-            // 3. only the game names that are genuinely callable from C++.
-            //    Everything else (Python keywords, __name__, generated-script
-            //    variables) is dropped rather than blacklisted one by one.
+            // 3. only the game names that are genuinely callable from this
+            //    language. Everything else (Python keywords, __name__,
+            //    generated-script variables) is dropped rather than blacklisted
+            //    one by one.
             if (original != null)
             {
                 foreach (string word in original)
@@ -119,10 +111,11 @@ namespace CppFarmer
 
         /// <summary>
         /// Used by GetSubWordList: keeps the game's candidates (builtins, enum
-        /// members) but strips language-specific names and adds C++ keywords
-        /// that match the fragment being completed.
+        /// members) but strips language-specific names and adds keywords that
+        /// match the fragment being completed.
         /// </summary>
-        public static List<string> Filter(List<string> original, string fragment)
+        public static List<string> Filter(List<string> original, string fragment,
+            string[] keywords)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var result = new List<string>(256);
@@ -133,19 +126,22 @@ namespace CppFarmer
                 {
                     if (string.IsNullOrEmpty(word)) continue;
                     if (word.StartsWith("__", StringComparison.Ordinal)) continue;
-                    if (NotInCpp.Contains(word)) continue;
+                    if (NotInSourceLanguage.Contains(word)) continue;
                     if (seen.Add(word)) result.Add(word);
                 }
             }
 
-            foreach (string kw in Keywords)
+            if (keywords != null)
             {
-                if (fragment != null && fragment.Length > 0 &&
-                    !kw.StartsWith(fragment, StringComparison.OrdinalIgnoreCase))
+                foreach (string kw in keywords)
                 {
-                    continue;
+                    if (fragment != null && fragment.Length > 0 &&
+                        !kw.StartsWith(fragment, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    if (seen.Add(kw)) result.Add(kw);
                 }
-                if (seen.Add(kw)) result.Add(kw);
             }
 
             return result;
@@ -157,6 +153,9 @@ namespace CppFarmer
         /// caret, so it happily offers suggestions while you are typing text
         /// inside quotes. Scanning from the start of the file is cheap enough for
         /// an editor-sized buffer and needs no parser.
+        ///
+        /// This is the C-family rule (`//`, `/* */`, both quote styles). A
+        /// language with different comment syntax must not use it.
         /// </summary>
         public static bool InsideStringOrComment(string text, int caret)
         {
@@ -198,7 +197,7 @@ namespace CppFarmer
             return inString || inChar || inBlock || inLine;
         }
 
-        /// <summary>Extracts C++ identifiers from source text.</summary>
+        /// <summary>Extracts identifiers from source text.</summary>
         private static IEnumerable<string> Identifiers(string source)
         {
             if (string.IsNullOrEmpty(source)) yield break;

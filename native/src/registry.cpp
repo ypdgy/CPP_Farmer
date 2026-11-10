@@ -16,6 +16,7 @@ namespace {
 // Index 0 is the default language: used when the plugin passes no id.
 const CfLanguage* const kLanguages[] = {
     &cf_cpp_language(),
+    &cf_c_language(),
     // &cf_rust_language(),
 };
 
@@ -39,7 +40,7 @@ void SetError(char** err, const char* language, int rc) {
 
 }  // namespace
 
-CF_EXPORT const char* cf_version(void) { return "cppfarmer 0.3.0"; }
+CF_EXPORT const char* cf_version(void) { return "cppfarmer 0.4.0"; }
 
 CF_EXPORT int cf_language_count(void) { return kLanguageCount; }
 

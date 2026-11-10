@@ -216,6 +216,9 @@ def main() -> int:
     out.append("#include <string>")
     out.append("#include <vector>")
     out.append("#include <map>")
+    # std::cout is the idiomatic output in this dialect, so the editor must know
+    # it without the player adding <iostream> themselves.
+    out.append("#include <iostream>")
     out.append("")
     out.append("// ---- directions ----------------------------------------------------")
     for i, direction in enumerate(("North", "East", "South", "West")):
@@ -286,15 +289,166 @@ def main() -> int:
     out.append("//   for what the transpiler can actually do with them.")
     out.append("")
 
-    target = Path(__file__).resolve().parent.parent / "editor" / "cppfarmer_api.hpp"
+    editor = Path(__file__).resolve().parent.parent / "editor"
+    target = editor / "cppfarmer_api.hpp"
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text("\n".join(out), encoding="utf-8", newline="\n")
     print(f"wrote {target} ({len(out)} lines)")
+
+    # C twin of the header; same source, C syntax.
+    write_c_header(editor / "cfarmer_api.h", enums, defs)
     for name in ENUMS:
         if enums.get(name):
             print(f"  {name}: {len(enums[name])} members")
     print(f"  functions: {len(emitted)}")
     return 0
+
+
+
+# Declared by <stdlib.h> with a different signature; redeclaring it here makes
+# gcc warn, and the C library prototype is good enough for the editor.
+C_SKIP = {"abs"}
+
+C_TYPE_MAP = {
+    "std::string": "const char*",
+    "std::map<int, int>": "int",
+    "std::vector<int>": "int",
+}
+
+
+def c_type(t: str) -> str:
+    return C_TYPE_MAP.get(t, t)
+
+
+def c_return(sig: str) -> str:
+    return c_type(cpp_return(sig))
+
+
+def c_param(pname: str, ptype: str, default: str | None) -> str:
+    """C has no default arguments: keep the type and the name only."""
+    rendered = cpp_param(pname, ptype, default)
+    if " = " in rendered:
+        rendered = rendered.split(" = ", 1)[0]
+    # The type is embedded in "TYPE name", so replace text, not the whole string.
+    for cpp_type, c_equivalent in C_TYPE_MAP.items():
+        rendered = rendered.replace(cpp_type, c_equivalent)
+    return rendered
+
+
+ORDER = [
+    "move", "can_move", "get_pos_x", "get_pos_y", "get_pos_z", "get_world_size",
+    "get_entity_type", "get_ground_type", "harvest", "can_harvest", "plant",
+    "till", "dig", "water", "get_water", "clear", "swap", "push", "can_push",
+    "place", "hover", "get_hover", "measure", "get_hardness", "get_stability",
+    "prospect_iron", "prospect_quartz", "use_item", "num_items", "change_hat",
+    "get_companion", "get_time", "get_tick_count", "set_execution_speed",
+    "set_world_size", "get_cost", "unlock", "num_unlocked", "jump", "random",
+    "max_drones", "num_drones", "spawn_drone", "wait_for", "has_finished",
+    "do_a_flip", "pet_the_piggy", "leaderboard_run", "print", "quick_print",
+    "abs", "min", "max",
+]
+
+
+def write_c_header(target: Path, enums: dict[str, list[str]],
+                   defs: list[tuple[str, str]]) -> None:
+    """C twin of the C++ header: same names, C syntax."""
+    out: list[str] = []
+    out.append("/* cfarmer_api.h - IDE-only declarations for C++ Farmer (C language).")
+    out.append(" *")
+    out.append(" * This header exists so an editor can complete and describe the game")
+    out.append(" * builtins and enum constants while you edit .c files outside the game.")
+    out.append(" * The mod's front-end ignores any #include of a *_api.h file, so")
+    out.append(" * including it has no effect on the script that actually runs.")
+    out.append(" *")
+    out.append(" * Generated from the game's builtins.py by scripts/gen_editor_api.py.")
+    out.append(" * Do not edit by hand; re-run the script after a game update.")
+    out.append(" */")
+    out.append("#ifndef CFARMER_API_H")
+    out.append("#define CFARMER_API_H")
+    out.append("")
+    out.append("#include <stdbool.h>")
+    out.append("")
+    out.append("/* ---- directions --------------------------------------------------- */")
+    out.append("enum { North = 0, East = 1, South = 2, West = 3 };")
+    out.append("")
+
+    for name in ENUMS:
+        members = enums.get(name, [])
+        if not members:
+            continue
+        out.append("/* ---- " + name + " " + "-" * max(0, 58 - len(name)) + " */")
+        # The game writes Entities.Bush, which in C is a struct member, so
+        # mirror that shape: one struct plus a const instance of it.
+        out.append("typedef struct {")
+        for member in members:
+            out.append("    int " + member + ";")
+        out.append("} cf_" + name + "_t;")
+        values = ", ".join(str(i) for i in range(len(members)))
+        out.append("static const cf_" + name + "_t " + name + " = { " + values + " };")
+        out.append("")
+
+    out.append("/* ---- world & movement --------------------------------------------- */")
+    by_name: dict[str, list[str]] = {}
+    for name, sig in defs:
+        by_name.setdefault(name, []).append(sig)
+
+    emitted: set[str] = set()
+    for name in ORDER:
+        if name in emitted or name in SKIP_FUNCS or name in C_SKIP or name not in by_name:
+            continue
+        sig = by_name[name][0]
+        if name in ("print", "quick_print"):
+            # Emitted as one block below: the spelling differs between the two
+            # languages, and a header editor may compile this file as either.
+            emitted.add(name)
+            continue
+        if name == "spawn_drone":
+            out.append("int spawn_drone(int task);   /* returns a drone handle */")
+            emitted.add(name)
+            continue
+        if name in ("min", "max"):
+            out.append("double " + name + "(double a, double b);")
+            emitted.add(name)
+            continue
+        params = parse_params(sig)
+        rendered = [c_param(pname, ptype, pdefault) for pname, ptype, pdefault in params]
+        args = ", ".join(rendered) if rendered else "void"
+        out.append(c_return(sig) + " " + name + "(" + args + ");")
+        emitted.add(name)
+
+    out.append("")
+    out.append("/* ---- output ------------------------------------------------------- */")
+    out.append("/* print and quick_print accept any argument list and return nothing.")
+    out.append(" *")
+    out.append(" * No prototype can say that portably: `void print();` is \"unspecified\"")
+    out.append(" * in C89 but \"no arguments\" to C++ and to MSVC's IntelliSense (it shows")
+    out.append(" * `void print(void)`), while `const char* first, ...` rejects a call")
+    out.append(" * whose first argument is not a string. So C++ gets a variadic")
+    out.append(" * template and C gets a variadic macro -- both accept any call without")
+    out.append(" * a diagnostic, which is exactly the game's rule. */")
+    out.append("#ifdef __cplusplus")
+    out.append("template <typename... Args> void print(Args... args);")
+    out.append("template <typename... Args> void quick_print(Args... args);")
+    out.append("#else")
+    out.append("#define print(...) ((void)0)")
+    out.append("#define quick_print(...) ((void)0)")
+    out.append("#endif")
+    out.append("")
+    out.append("/* ---- C-only ------------------------------------------------------- */")
+    out.append("/* printf is not a game builtin: the front-end lowers printf(\"x=%d\", n)")
+    out.append(" * into string concatenation at compile time. The prototype matches")
+    out.append(" * <stdio.h> so including both headers is harmless. */")
+    out.append("int printf(const char* format, ...);")
+    out.append("")
+    out.append("/* get_companion() returns a tuple; store it in an int if you only need")
+    out.append(" * the call for its side effect. */")
+    out.append("")
+    out.append("#endif /* CFARMER_API_H */")
+    out.append("")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(chr(10).join(out), encoding="utf-8", newline=chr(10))
+    print(f"wrote {target} ({len(out)} lines)")
 
 
 if __name__ == "__main__":

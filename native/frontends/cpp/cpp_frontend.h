@@ -8,7 +8,9 @@
 
 #include "cf_api.h"
 
-// Descriptor registered in native/src/registry.cpp.
+// Descriptors registered in native/src/registry.cpp. Both share the parser and
+// the code generator; only the dialect flag differs.
 const CfLanguage& cf_cpp_language();
+const CfLanguage& cf_c_language();
 
 #endif  // CF_FRONTEND_CPP_H

@@ -7,9 +7,9 @@ namespace CppFarmer
     /// Routes the game's documentation requests to the registered languages.
     ///
     /// Localizer.LoadDoc is asked for a virtual document id and only ids owned by
-    /// a <see cref="LanguageProfile"/> are answered. The one intentional
-    /// exception is the docs home page, which gets one link per language. No file
-    /// on disk changes.
+    /// a <see cref="LanguageProfile"/> are answered, plus two ids that are not a
+    /// language: the index page the toolbar button opens, and the game's docs home
+    /// page, which gets a link to that index. No file on disk changes.
     /// </summary>
     [HarmonyPatch(typeof(Localizer), nameof(Localizer.LoadDoc))]
     internal static class PatchLoadDoc
@@ -19,6 +19,19 @@ namespace CppFarmer
         [HarmonyPostfix]
         private static void Postfix(string doc, ref string __result)
         {
+            if (string.Equals(doc, ReferenceIndex.DocId, StringComparison.Ordinal))
+            {
+                try
+                {
+                    __result = ReferenceIndex.Build();
+                }
+                catch (Exception e)
+                {
+                    Plugin.Log.LogError("cannot build the reference index: " + e);
+                }
+                return;
+            }
+
             if (LanguageRegistry.DocOwner(doc) != null)
             {
                 try

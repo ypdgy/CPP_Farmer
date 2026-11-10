@@ -1,6 +1,8 @@
 # C++ Farmer
 
-在游戏《编程农场》(**The Farmer Was Replaced**) 内置编辑器里，直接用 **C++** 写控制脚本。
+在游戏《编程农场》(**The Farmer Was Replaced**) 内置编辑器里，直接用 **C++** 或 **C** 写控制脚本。
+
+> **当前版本 v0.4.0** · 变更见 [CHANGELOG.md](CHANGELOG.md) · 下载见 [Releases](../../releases)
 
 > **NOTICE**
 > 本项目为**Vibe Coding**产物，全部代码均为AI生成，有任何BUG也是AI修，若介意请勿使用。
@@ -48,11 +50,14 @@
 
 ## 这是什么
 
-游戏本身只支持一门自研的类 Python 语言，没有 C++ 执行路径。C++ Farmer 的做法是：
+游戏本身只支持一门自研的类 Python 语言，没有 C/C++ 执行路径。C++ Farmer 的做法是：
 
 ```
-.cpp 源码  ──►  C++ 前端编译器（本仓库）  ──►  游戏语言脚本  ──►  游戏自己的解释器执行
+.c / .cpp 源码  ──►  前端编译器（本仓库）  ──►  游戏语言脚本  ──►  游戏自己的解释器执行
 ```
+
+C 与 C++ 共用同一个前端：`.c` 窗口走 C 方言（printf 会按格式串展开），`.cpp` 窗口走 C++ 方言。
+两门语言各有独立的补全词表、着色规则、存档扩展名与说明页。
 
 - 一个用 C++20 写的**单文件前端编译器**：词法 → 递归下降语法 → 语义映射 → 缩进代码生成
 - 一个 **BepInEx 5 / Harmony 插件**：在解析入口把生成脚本交给游戏，并接管补全、着色、说明页
@@ -65,14 +70,16 @@
 | 功能 | 说明 |
 |---|---|
 | C++ 子集 | 变量/类型、函数、`if/else`、`while`、`for`、范围 for、结构体、枚举、`?:`、`cout <<` |
+| C 子集 | 同一个前端 + C 方言：`struct` / `typedef`、数组、枚举、`printf` 占位符在编译期展开 |
+| 多语言并存 | `.c` 与 `.cpp` 窗口可以同时打开，各有补全、着色、说明页；存档分别存成 `main.c` / `main.cpp` |
 | 科技树门禁 | 编译期按存档实际解锁项检查，未解锁的构造直接给出带行号的错误 |
 | 中文输入友好 | 全角标点明确报错；不可见空白（NBSP、BOM、零宽空格）静默忽略 |
 | 多文件 | `#include "x.cpp"` 走游戏原生 import 机制，执行高亮与断点可跨文件 |
 | 编辑器集成 | C++ 关键字补全、C++ 语法着色、字符串/注释内不弹补全、`{` 回车自动缩进 |
 | 词条说明 | 补全列表与代码悬停时，C++ 关键字和标准库写法都有中文说明（不支持的直接标注） |
-| 说明页 | 右上角按钮 + 文档首页链接，指向模组自带的 C++ 参考，内含「常见错误与函数调用」一页 |
-| 原生扩展名 | `.cpp` 窗口直接存成 `main.cpp`（不再包一层 `.py`），旧存档自动迁移 |
-| 外部编辑 | 插件自动把 `cppfarmer_api.hpp` 与 VS Code 配置放进存档目录，编辑器可补全游戏内置函数与枚举 |
+| 说明页 | 右上角按钮打开**说明总览**，再按语言进入「语言说明」「常见错误」两页；文档首页也有入口 |
+| 原生扩展名 | `.cpp` / `.c` 窗口直接存成 `main.cpp` / `main.c`（不再包一层 `.py`），旧存档自动迁移 |
+| 外部编辑 | 插件自动把 `cppfarmer_api.hpp` / `cfarmer_api.h` 放进存档目录，编辑器可补全游戏内置函数与枚举 |
 | 科技树提示 | 悬停节点显示该科技解锁后可用的 C++ 写法 |
 | 断点 | `.cpp` 行号换算成生成脚本的字符偏移；跨文件由游戏原生 `import` 定位到被包含窗口 |
 | 执行高亮 | 运行/单步的光块按行映射回 `.cpp` 源码，不会落在注释或空行上 |
@@ -236,12 +243,15 @@ CppFarmer/
 │   ├─ Languages/
 │   │   ├─ LanguageProfile.cs 一门语言要实现什么
 │   │   ├─ LanguageRegistry.cs 按文件名找语言
-│   │   └─ Cpp/               C++ 的词表、着色规则、缩进、include、帮助页、提示
-│   └─ Ui/HelpButton.cs       右上角说明页按钮
+│   │   ├─ Cpp/               C++：词表、着色规则、include、说明页、提示
+│   │   └─ C/                 C：C 关键字、着色规则、说明页
+│   └─ Ui/HelpButton.cs       右上角按钮，打开说明总览
 ├─ plugin/pages/              游戏内说明页正文（Markdown，随包发布，可直接编辑）
+│   ├─ farmer_index.md        总览页：各语言分页的导航
 ├─ editor/                    外部编辑器用的 API 头（IDE-only）
 ├─ scripts/                   构建、目录监听与打包（pack.py 生成 Release zip）
 ├─ examples/cpp/              可直接编译的示例
+├─ examples/c/                同上，C 版本
 ├─ templates/cpp/             起步模板（目录监听用）
 ├─ tests/cpp/                 特性用例、错误用例、多文件用例
 ├─ dist/                      CppFarmer-mod/（包内文本源 + 捆绑的 BepInEx 载荷）+ 上传用 zip
@@ -252,6 +262,7 @@ CppFarmer/
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 架构、集成点、并发约束、成就与科技树保护
 - [docs/languages/cpp.md](docs/languages/cpp.md) — C++ 子集支持矩阵与语义映射
+- [docs/languages/c.md](docs/languages/c.md) — C 方言：`printf` 展开、与 C++ 的边界
 - [docs/ADDING_A_LANGUAGE.md](docs/ADDING_A_LANGUAGE.md) — 新增一门语言的完整接入点
 - [native/README.md](native/README.md) — 原生前端的 ABI 与目录约定
 - [docs/SAVE_SAFETY.md](docs/SAVE_SAFETY.md) — 存档安全：备份、自动存档行为、恢复与免责声明
@@ -259,18 +270,23 @@ CppFarmer/
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — 运行期问题排查
 - [editor/README.md](editor/README.md) — 外部编辑器（VS Code / clangd / CLion）配置
 - [THIRD_PARTY_NOTICES.md](dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md) — 捆绑的 BepInEx 来源、许可证与校验
+- [CHANGELOG.md](CHANGELOG.md) — 版本历史与兼容性说明
 
 ## 已知限制
 
 - 游戏内所有数字都是浮点数；整型除法映射为向下取整，**负数相除与 C++ 不同**
+- C 侧：`printf` 只支持 `%d %i %u %f %s %c` 与 `%%`，宽度/精度不生效；`%x` `%o` `%e` `%g` 会被拒绝而不是打印错数字
 - 不支持位运算、指针、类与继承、模板、`switch`、`std::set`、`std::pair`、
   `#include <...>`（没有标准库可链接），遇到时给出带行号的明确错误
 - 生成脚本仍是 AST 解释执行，操作数消耗不变，**没有性能收益**
 - 转译产物与 C++ 源码的坐标系不同：断点、执行高亮、错误位置都已映射回源码，但
   执行高亮的粒度有时只能落到「整行」（生成脚本里没有一一对应的 token 时）
 - 需要随游戏更新维护补丁点；补丁失效时插件会尽量降级而不是崩游戏
-- `editor/cppfarmer_api.hpp` 只是给 IDE 的声明，**不参与游戏内编译**；能写什么仍以
-  [docs/languages/cpp.md](docs/languages/cpp.md) 为准，IDE 不会提示前端不支持的那些写法
+- `editor/` 下的两个头文件（`cppfarmer_api.hpp` / `cfarmer_api.h`）只是给 IDE 的声明，
+  **不参与游戏内编译**；能写什么仍以 [docs/languages/](docs/languages/README.md) 为准，
+  IDE 不会提示前端不支持的那些写法
+- `.c` 与 `.cpp` 共用同一个前端，所以 `.c` 里技术上也能写 `std::vector`；不推荐，
+  而且跨语言 `#include` 不互认（`.c` 导入 `.cpp` 会按 C 方言编译）
 - 捆绑的 `winhttp.dll` 是 DLL 代理加载器，个别安全软件可能误报；可从
   [BepInEx 官方仓库](https://github.com/BepInEx/BepInEx) 自行下载同版本核对
 

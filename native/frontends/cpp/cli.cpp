@@ -52,10 +52,11 @@ bool writeFile(const std::string& path, const std::string& data) {
 
 void usage() {
     std::cout <<
-        "cppfarmer - C++ subset -> The Farmer Was Replaced script compiler\n"
+        "cppfarmer - C/C++ subset -> The Farmer Was Replaced script compiler\n"
         "\n"
-        "usage: cppfarmer <input.cpp> [-o <output.py>] [--line-hints] [--check] [--stdout]\n"
+        "usage: cppfarmer <input> [--lang cpp|c] [-o <out.py>] [--check] [--stdout]\n"
         "\n"
+        "  --lang <id>    front-end dialect: cpp (default) or c\n"
         "  -o <file>      write generated script to <file> (default: <input>.py)\n"
         "  --line-hints   emit '# src:NN' comments before each function\n"
         "  --check        parse and type-check only, do not write output\n"
@@ -77,6 +78,7 @@ int main(int argc, char** argv) {
     bool printLineMap = false;
     std::vector<std::string> unlocks;
     bool hasUnlocks = false;
+    bool langSet = false;
     cppfarmer::Options opt;
 
     for (int i = 1; i < argc; ++i) {
@@ -109,6 +111,17 @@ int main(int argc, char** argv) {
             printLineMap = true;
             continue;
         }
+        if (a == "--lang" && i + 1 < argc) {
+            std::string id = argv[++i];
+            langSet = true;
+            if (id == "c" || id == "C") {
+                opt.dialect = cppfarmer::Dialect::C;
+            } else if (id != "cpp" && id != "c++" && id != "C++") {
+                std::cerr << "unknown language: " << id << " (cpp, c)" << std::endl;
+                return 2;
+            }
+            continue;
+        }
         if (a == "--unlocks" && i + 1 < argc) {
             unlocks = splitCsv(argv[++i]);
             hasUnlocks = true;
@@ -124,6 +137,16 @@ int main(int argc, char** argv) {
     if (input.empty()) {
         usage();
         return 2;
+    }
+
+    // Pick the dialect from the extension unless --lang said otherwise: the
+    // regression scripts rely on this, and it matches what the plugin does.
+    if (!langSet) {
+        const std::string ext = ".c";
+        if (input.size() > ext.size() &&
+            input.compare(input.size() - ext.size(), ext.size(), ext) == 0) {
+            opt.dialect = cppfarmer::Dialect::C;
+        }
     }
 
     bool ok = false;

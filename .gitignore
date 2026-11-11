@@ -79,3 +79,13 @@ Thumbs.db
 # clone cannot rebuild the zip without downloading BepInEx 5.4.23.6 separately.
 # ---------------------------------------------------------------------------
 /dist/
+
+# ---------------------------------------------------------------------------
+# Maintainer notes - local only.
+#
+# Written for whoever picks this up next: which version strings to bump, what
+# to verify before releasing, and which mistakes have already been made. Kept
+# out of version control on purpose, so it can name local paths and state the
+# project's own workflow without becoming public documentation.
+# ---------------------------------------------------------------------------
+/RELEASING.local.md

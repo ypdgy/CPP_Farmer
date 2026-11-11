@@ -95,3 +95,9 @@ CF_EXPORT int cppfarmer_transpile_ex(const char* src, const char* unlocks_csv,
 }
 
 CF_EXPORT const char* cppfarmer_version(void) { return cf_version(); }
+
+// 0.2.0 exported cppfarmer_free. Renaming everything to cf_* dropped it, so an
+// older plugin would load fine, compile fine, and then throw
+// EntryPointNotFoundException on its first release of a result buffer -- the
+// aliases above only cover the compile calls.
+CF_EXPORT void cppfarmer_free(char* p) { cf_free(p); }

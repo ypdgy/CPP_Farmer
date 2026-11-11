@@ -8,6 +8,27 @@
 | `plugin/CppFarmer.csproj` | `<Version>`（DLL 程序集元数据） |
 | `native/src/registry.cpp` | `cf_version()`（插件启动时打印 `native compiler: ...`） |
 
+## v0.5.0 — 2026-11-11
+
+### 新增：Java 语言支持
+
+- 新增 `java` 语言（`.java` 窗口），拥有独立的解析器与代码生成器（复用 C++ 前端的词法器与 AST 定义）。
+- 一个文件一个 `public class`；类当作**静态容器**——字段与方法都要 `static`，实例成员明确报错。
+- 入口 `public static void main(String[] args)` 提升为顶层代码，`args` 被忽略，开局无需解锁「函数定义」。
+- 支持类型 `int float double boolean char String void`；一维数组 `int[] a = new int[10]`、`{1,2,3}` 字面量、`.length`。
+- 输出 `System.out.println(...)` / `System.out.print(...)` 映射为 `print`；字符串 `+` 拼接自动把数字 `str()` 化。
+- 数学 `Math.abs` `Math.min` `Math.max` `Math.sqrt` `Math.pow` `Math.floor` `Math.ceil` `Math.round` 与 `Math.PI`。
+- 布尔 `true/false`、`&&` `||` `!` 映射为 `and` / `or` / `not`；`Entities.Tree` 等游戏枚举原样透传。
+- `import java.*;` 整行忽略；`switch`、`do/while`、三元、位运算、对象实例化、泛型、多维数组、跨文件导入均被明确拒绝。
+- 独立的补全词表、语法着色、说明页（`javafarmer_reference` / `javafarmer_errors`）与存档后缀 `.java`。
+- 新增 `docs/languages/java.md` 规格说明与 `scripts/test_java.py` 回归脚本（直接经 `cf_transpile_ex` 调 DLL）。
+
+### 兼容性
+
+- 原生 ABI 未变（`cf_*` 接口不变），仅新增语言 id `java`；`cf_language_count()` 从 2 变为 3。
+- 0.4.x 插件配 0.5.0 DLL 仍能编译 C++/C，但看不到 Java；插件与 DLL 需同版本发布。
+- 存档格式、配置项、说明页结构均未变，可直接覆盖安装。
+
 ## v0.4.1 — 2026-11-11
 
 ### 修复：旧插件与新 DLL 混装时崩溃

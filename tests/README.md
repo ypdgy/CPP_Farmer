@@ -18,6 +18,9 @@
 | `c/entry.c` | 转译成功，且**生成结果里没有 `def`** | `int main(void)` 也要提升 |
 | `c/inc/` | 转译成功 | 多文件：`#include "helper.c"` 变成模块导入 |
 | `c/err/*.c` | **必须报错** | `printf` 占位符不匹配、`%x`、`switch`、以及 C 里写 `cout` |
+| `java/entry.java` | 转译成功，且**生成结果里没有 `def`** | `public static void main` 必须提升为顶层代码 |
+| `java/basic.java` | 转译成功 | 静态字段/方法、数组、两种循环、字符串拼接、`Math`、布尔综合用例 |
+| `java/err/*.java` | **必须报错** | 无 `static` 成员、`new` 对象、`switch`、位运算、三元表达式 |
 
 > 曾有两个正向用例误放在 `err/` 里（三元表达式、Unicode 空白），现已移到 `cpp/`。
 > 如果新增用例，请先确认它到底应该成功还是失败，再决定放哪。
@@ -44,6 +47,9 @@ for f in tests/cpp/err/*.cpp tests/c/err/*.c; do
     rc=$?
     printf '%-34s rc=%s  %s\n' "$f" "$rc" "$(echo "$msg" | head -1)"
 done
+
+# Java：C++ CLI 只认 cpp/c，Java 用例直接走 DLL 的 cf_transpile_ex 回归
+python scripts/test_java.py
 ```
 
 ## 开局可用性（重要）
@@ -55,9 +61,10 @@ done
 # 只有开局默认拥有的解锁项，没有 functions
 ./build/cppfarmer.exe tests/c/entry.c --unlocks "variables,operators,loops,lists" --check
 ./build/cppfarmer.exe tests/cpp/entry_top.cpp --unlocks "variables,operators,loops,lists" --check
+# Java 入口同样要在无 functions 时能编译（scripts/test_java.py 内已覆盖）
 ```
 
-两条都应成功。若哪天入口又变回 `def main()`，这两条会立刻失败。
+两条（cpp/c）都应成功。若哪天入口又变回 `def main()`，这两条会立刻失败。
 
 注意 Bash 里 `printf ... "$(basename "$f")" "$?"` 会让命令替换把 `$?` 覆盖成 0，
 **必须先把退出码存进变量**（上面的 `rc=$?`）。

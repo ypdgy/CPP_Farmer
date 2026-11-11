@@ -7,6 +7,7 @@
 |---|---|---|---|---|
 | C++ | `cpp` | `.cpp` `.cxx` `.cc` `.c++` `.hpp` | `.cpp` | [cpp.md](cpp.md) |
 | C | `c` | `.c` | `.c` | [c.md](c.md) |
+| Java | `java` | `.java` | `.java` | [java.md](java.md) |
 
 新增语言请在本目录加一份 `<id>.md`，并在上表补一行；接入步骤见
 [../ADDING_A_LANGUAGE.md](../ADDING_A_LANGUAGE.md)。

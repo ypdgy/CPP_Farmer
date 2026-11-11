@@ -19,6 +19,7 @@ namespace CppFarmer
         {
             Register(new CppLanguage());
             Register(new CLanguage());
+            Register(new JavaLanguage());
             // Register(new RustLanguage());   // add front-ends here
         }
 

@@ -53,11 +53,12 @@
 游戏本身只支持一门自研的类 Python 语言，没有 C/C++ 执行路径。C++ Farmer 的做法是：
 
 ```
-.c / .cpp 源码  ──►  前端编译器（本仓库）  ──►  游戏语言脚本  ──►  游戏自己的解释器执行
+.c / .cpp / .java 源码  ──►  前端编译器（本仓库）  ──►  游戏语言脚本  ──►  游戏自己的解释器执行
 ```
 
 C 与 C++ 共用同一个前端：`.c` 窗口走 C 方言（printf 会按格式串展开），`.cpp` 窗口走 C++ 方言。
-两门语言各有独立的补全词表、着色规则、存档扩展名与说明页。
+Java 有独立的解析器与代码生成器：`.java` 窗口把 `public class` 当作静态容器，入口 `main` 同样提升为顶层代码。
+三门语言各有独立的补全词表、着色规则、存档扩展名与说明页。
 
 - 一个用 C++20 写的**单文件前端编译器**：词法 → 递归下降语法 → 语义映射 → 缩进代码生成
 - 一个 **BepInEx 5 / Harmony 插件**：在解析入口把生成脚本交给游戏，并接管补全、着色、说明页
@@ -71,7 +72,8 @@ C 与 C++ 共用同一个前端：`.c` 窗口走 C 方言（printf 会按格式�
 |---|---|
 | C++ 子集 | 变量/类型、函数、`if/else`、`while`、`for`、范围 for、结构体、枚举、`?:`、`cout <<` |
 | C 子集 | 同一个前端 + C 方言：`struct` / `typedef`、数组、枚举、`printf` 占位符在编译期展开 |
-| 多语言并存 | `.c` 与 `.cpp` 窗口可以同时打开，各有补全、着色、说明页；存档分别存成 `main.c` / `main.cpp` |
+| Java 子集 | 独立前端：`public class` 静态容器、`static` 字段/方法、数组、`System.out.println`、字符串 `+`、`Math.*` |
+| 多语言并存 | `.c` / `.cpp` / `.java` 窗口可以同时打开，各有补全、着色、说明页；存档分别存成 `main.c` / `main.cpp` / `main.java` |
 | 科技树门禁 | 编译期按存档实际解锁项检查，未解锁的构造直接给出带行号的错误 |
 | 中文输入友好 | 全角标点明确报错；不可见空白（NBSP、BOM、零宽空格）静默忽略 |
 | 多文件 | `#include "x.cpp"` 走游戏原生 import 机制，执行高亮与断点可跨文件 |
@@ -236,7 +238,8 @@ CppFarmer/
 ├─ native/                    原生前端（一个 DLL，多门语言）
 │   ├─ include/cf_api.h       语言无关 ABI
 │   ├─ src/registry.cpp       语言分发表、cf_* 实现、旧符号别名
-│   └─ frontends/cpp/         C++ 子集：lexer/parser/codegen + CLI + watch
+│   ├─ frontends/cpp/         C++ 子集：lexer/parser/codegen + CLI + watch
+│   └─ frontends/java/        Java 子集：parser/codegen（复用 cpp 的 lexer/AST）
 ├─ plugin/src/                BepInEx / Harmony 插件（C#）
 │   ├─ Plugin.cs              配置项、补丁注册
 │   ├─ Core/                  语言无关：源码读取、转译缓存、存档、坐标映射、文档路由
@@ -244,7 +247,8 @@ CppFarmer/
 │   │   ├─ LanguageProfile.cs 一门语言要实现什么
 │   │   ├─ LanguageRegistry.cs 按文件名找语言
 │   │   ├─ Cpp/               C++：词表、着色规则、include、说明页、提示
-│   │   └─ C/                 C：C 关键字、着色规则、说明页
+│   │   ├─ C/                 C：C 关键字、着色规则、说明页
+│   │   └─ Java/              Java：词表、着色规则、说明页
 │   └─ Ui/HelpButton.cs       右上角按钮，打开说明总览
 ├─ plugin/pages/              游戏内说明页正文（Markdown，随包发布，可直接编辑）
 │   ├─ farmer_index.md        总览页：各语言分页的导航
@@ -263,6 +267,7 @@ CppFarmer/
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 架构、集成点、并发约束、成就与科技树保护
 - [docs/languages/cpp.md](docs/languages/cpp.md) — C++ 子集支持矩阵与语义映射
 - [docs/languages/c.md](docs/languages/c.md) — C 方言：`printf` 展开、与 C++ 的边界
+- [docs/languages/java.md](docs/languages/java.md) — Java 子集：类/静态成员/数组/字符串拼接与语义映射
 - [docs/ADDING_A_LANGUAGE.md](docs/ADDING_A_LANGUAGE.md) — 新增一门语言的完整接入点
 - [native/README.md](native/README.md) — 原生前端的 ABI 与目录约定
 - [docs/SAVE_SAFETY.md](docs/SAVE_SAFETY.md) — 存档安全：备份、自动存档行为、恢复与免责声明
@@ -287,6 +292,10 @@ CppFarmer/
   IDE 不会提示前端不支持的那些写法
 - `.c` 与 `.cpp` 共用同一个前端，所以 `.c` 里技术上也能写 `std::vector`；不推荐，
   而且跨语言 `#include` 不互认（`.c` 导入 `.cpp` 会按 C 方言编译）
+- Java 侧：`class` 只是静态容器（不支持实例化/继承/接口），`switch`、`do/while`、三元表达式、
+  位运算、泛型、多维数组、跨文件导入都会被明确拒绝；`import java.*;` 整行忽略（无标准库）
+- Java 暂不提供外部编辑器头：游戏内置函数在 Java 里以全局形式调用（`move(North)`），
+  而 Java 语言没有全局函数，无法用合法的声明文件为它们提供 IDE 补全；游戏内补全与说明页已覆盖
 - 捆绑的 `winhttp.dll` 是 DLL 代理加载器，个别安全软件可能误报；可从
   [BepInEx 官方仓库](https://github.com/BepInEx/BepInEx) 自行下载同版本核对
 

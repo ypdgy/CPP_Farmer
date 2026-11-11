@@ -35,6 +35,18 @@
   `.cpp` 里 `printf` 的占位符仍然被拒绝，两门语言各自只认自己的写法。
 - 三元表达式不再因为「顶层缩进为 0」被误判（入口提升后 `main` 就在顶层）。
 
+### 修复：旧插件与新 DLL 混装时崩溃
+
+- **现象**：0.2.x 的 `CppFarmer.dll` 配 0.3.0 / 0.4.0 的 `cppfarmer_native.dll`，
+  编译能成功，但第一次输出结果时抛 `EntryPointNotFoundException`（找不到入口点
+  `cppfarmer_free`）。
+- **影响范围**：只在手动混装两个版本时出现。安装包中的插件与 DLL 始终同版本，
+  正常升级不受影响。
+- **根因**：0.3.0 把导出改名成 `cf_*`，为旧插件保留了 `cppfarmer_transpile` /
+  `cppfarmer_transpile_ex` / `cppfarmer_version` 三个别名，漏掉了 `cppfarmer_free`。
+  编译侧别名齐全，掩盖了释放侧缺失。
+- **修复**：补回 `cppfarmer_free`。导出符号现为 `cf_*` 8 个 + 兼容别名 4 个，共 12 个。
+
 ### 外部编辑器
 
 - 新增 `editor/cfarmer_api.h`（C）与 `editor/cppfarmer_api.hpp`（C++），随包分发，

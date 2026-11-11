@@ -2,7 +2,7 @@
 
 在游戏《编程农场》(**The Farmer Was Replaced**) 内置编辑器里，直接用 **C++** 或 **C** 写控制脚本。
 
-> **当前版本 v0.4.0** · 变更见 [CHANGELOG.md](CHANGELOG.md) · 下载见 [Releases](../../releases)
+> 变更见 [CHANGELOG.md](CHANGELOG.md) · 下载见 [Releases](../../releases)
 
 > **NOTICE**
 > 本项目为**Vibe Coding**产物，全部代码均为AI生成，有任何BUG也是AI修，若介意请勿使用。

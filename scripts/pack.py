@@ -116,6 +116,8 @@ def main() -> int:
         f"{PREFIX}/{PLUGIN_DIR}cfarmer_errors.md",
         f"{PREFIX}/{PLUGIN_DIR}javafarmer_reference.md",
         f"{PREFIX}/{PLUGIN_DIR}javafarmer_errors.md",
+        f"{PREFIX}/{PLUGIN_DIR}csharpfarmer_reference.md",
+        f"{PREFIX}/{PLUGIN_DIR}csharpfarmer_errors.md",
         f"{PREFIX}/{PLUGIN_DIR}farmer_index.md",
         f"{PREFIX}/editor/cfarmer_api.h",
     }

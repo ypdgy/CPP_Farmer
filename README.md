@@ -1,11 +1,11 @@
 # C++ Farmer
 
-在游戏《编程农场》(**The Farmer Was Replaced**) 内置编辑器里，直接用 **C++** 或 **C** 写控制脚本。
+在游戏《编程农场》(**The Farmer Was Replaced**) 内置编辑器里，用更多编程语言写控制脚本。
 
 > 变更见 [CHANGELOG.md](CHANGELOG.md) · 下载见 [Releases](../../releases)
 
 > **NOTICE**
-> 本项目为**Vibe Coding**产物，全部代码均为AI生成，有任何BUG也是AI修，若介意请勿使用。
+> 本项目为**Vibe Coding**产物，全部代码均为AI生成，有任何BUG也是AI修，代码几乎没有人工审查，若介意请勿使用。
 > 本项目尚未支持DLC内容，因为我没买。
 
 > [!WARNING]
@@ -23,7 +23,7 @@
 >
 > **唯一例外**：发布包为了让安装器开箱即用，额外捆绑了第三方组件
 > **BepInEx 5.4.23.6** 的官方未修改二进制。它不是游戏文件，也不是反编译产物；
-> 官方仓库 **https://github.com/BepInEx/BepInEx **，LGPL-2.1 许可，
+> 官方仓库 https://github.com/BepInEx/BepInEx ，LGPL-2.1 许可，
 > 详见 [第三方声明](dist/CppFarmer-mod/THIRD_PARTY_NOTICES.md)。
 
 > [!CAUTION]
@@ -39,32 +39,32 @@
 > 但这类风险无法完全排除。
 >
 > ```
-> %USERPROFILE%\AppData\LocalLow\TheFarmerWasReplaced\TheFarmerWasReplaced\Saves\Save0
+> %USERPROFILE%\AppData\LocalLow\TheFarmerWasReplaced\TheFarmerWasReplaced\Saves
 > ```
 >
 > **退出游戏后**把整个 `Saves\` 目录复制一份再装；出问题时先恢复备份再排查。
 > 细节见 [存档安全](#存档安全save-safety) 与 [docs/SAVE_SAFETY.md](docs/SAVE_SAFETY.md)。
-> 作者不对任何存档、进度或成就的损失负责。
+> **作者不对任何存档、进度或成就的损失负责。**
 
 ---
 
 ## 这是什么
 
-游戏本身只支持一门自研的类 Python 语言，没有 C/C++ 执行路径。C++ Farmer 的做法是：
+游戏本身只支持一门自研的类 Python 语言，没有其它语言执行路径。C++ Farmer 的做法是：
 
 ```
-.c / .cpp / .java 源码  ──►  前端编译器（本仓库）  ──►  游戏语言脚本  ──►  游戏自己的解释器执行
+.c / .cpp / .java / .cs 源码  ──►  前端编译器（本仓库）  ──►  游戏语言脚本  ──►  游戏自己的解释器执行
 ```
 
 C 与 C++ 共用同一个前端：`.c` 窗口走 C 方言（printf 会按格式串展开），`.cpp` 窗口走 C++ 方言。
-Java 有独立的解析器与代码生成器：`.java` 窗口把 `public class` 当作静态容器，入口 `main` 同样提升为顶层代码。
-三门语言各有独立的补全词表、着色规则、存档扩展名与说明页。
+Java 与 C# 各有独立的解析器与代码生成器：`.java` / `.cs` 窗口把 `class` 当作静态容器，入口 `main` 同样提升为顶层代码。
+四门语言各有独立的补全词表、着色规则、存档扩展名与说明页。
 
 - 一个用 C++20 写的**单文件前端编译器**：词法 → 递归下降语法 → 语义映射 → 缩进代码生成
 - 一个 **BepInEx 5 / Harmony 插件**：在解析入口把生成脚本交给游戏，并接管补全、着色、说明页
 - 生成产物仍然由游戏自己的解释器逐节点执行，因此**操作数、成就统计、科技树解锁与手写脚本完全一致**
 
-这不是性能方案：C++ 在这里买到的是表达力（结构体、类型、工程性），不是帧率。
+这不是性能方案：其它语言在这里买到的是表达力（结构体、类型、工程性），不是帧率。
 
 ## 功能
 
@@ -73,7 +73,8 @@ Java 有独立的解析器与代码生成器：`.java` 窗口把 `public class` 
 | C++ 子集 | 变量/类型、函数、`if/else`、`while`、`for`、范围 for、结构体、枚举、`?:`、`cout <<` |
 | C 子集 | 同一个前端 + C 方言：`struct` / `typedef`、数组、枚举、`printf` 占位符在编译期展开 |
 | Java 子集 | 独立前端：`public class` 静态容器、`static` 字段/方法、数组、`System.out.println`、字符串 `+`、`Math.*` |
-| 多语言并存 | `.c` / `.cpp` / `.java` 窗口可以同时打开，各有补全、着色、说明页；存档分别存成 `main.c` / `main.cpp` / `main.java` |
+| C# 子集 | 独立前端：`class` 静态容器、`static` 成员、数组、`Console.WriteLine`、`foreach`、`Math.*` |
+| 多语言并存 | `.c` / `.cpp` / `.java` / `.cs` 窗口可以同时打开，各有补全、着色、说明页；存档分别存成 `main.c` / `main.cpp` / `main.java` / `main.cs` |
 | 科技树门禁 | 编译期按存档实际解锁项检查，未解锁的构造直接给出带行号的错误 |
 | 中文输入友好 | 全角标点明确报错；不可见空白（NBSP、BOM、零宽空格）静默忽略 |
 | 多文件 | `#include "x.cpp"` 走游戏原生 import 机制，执行高亮与断点可跨文件 |
@@ -89,12 +90,12 @@ Java 有独立的解析器与代码生成器：`.java` 窗口把 `public class` 
 
 ## 快速开始（玩家）
 
-0. **先备份 `Saves\Save0\`**（见 [存档安全](#存档安全save-safety)）
+0. **先备份 `Saves\`**（见 [存档安全](#存档安全save-safety)）
 1. 从 [Releases](../../releases) 下载 `CppFarmer-mod.zip` 并解压
-2. 双击 `install.bat`（或把 `BepInEx/plugins/CppFarmer/` 整个目录复制到游戏目录）
+2. 双击 `install.bat`并输入游戏安装目录
 3. **BepInEx 已内置**：安装器检测到游戏里还没有 BepInEx 时，会自动装上捆绑的
    5.4.23.6；**已装过 BepInEx 则完全跳过**，不覆盖你的版本、配置或其它模组
-4. 启动游戏，把代码文件改名为以 `.cpp` 结尾，例如 `main.cpp`
+4. 启动游戏，把代码文件改名为以 `.cpp` 或其它已支持的扩展名结尾，例如 `main.cpp`
 5. 写 C++，按运行键
 
 不再需要单独下载安装 BepInEx。若只想装插件、不碰 BepInEx，设环境变量
@@ -134,7 +135,7 @@ int main() {
 
 ### 先说结论
 
-1. **装之前备份**：把整个 `Saves\Save0\` 复制一份（关掉游戏再复制）。
+1. **装之前备份**：把整个 `Saves\` 复制一份（关掉游戏再复制）。
 2. **改文件前关游戏**：外部编辑器、改名、删除，都在游戏退出后进行。
 3. **出问题先恢复备份**：`Saves` 换回备份，再来看日志。
 
@@ -239,7 +240,8 @@ CppFarmer/
 │   ├─ include/cf_api.h       语言无关 ABI
 │   ├─ src/registry.cpp       语言分发表、cf_* 实现、旧符号别名
 │   ├─ frontends/cpp/         C++ 子集：lexer/parser/codegen + CLI + watch
-│   └─ frontends/java/        Java 子集：parser/codegen（复用 cpp 的 lexer/AST）
+│   ├─ frontends/java/        Java 子集：parser/codegen（复用 cpp 的 lexer/AST）
+│   └─ frontends/csharp/      C# 子集：parser/codegen（复用 cpp 的 lexer/AST）
 ├─ plugin/src/                BepInEx / Harmony 插件（C#）
 │   ├─ Plugin.cs              配置项、补丁注册
 │   ├─ Core/                  语言无关：源码读取、转译缓存、存档、坐标映射、文档路由
@@ -248,7 +250,8 @@ CppFarmer/
 │   │   ├─ LanguageRegistry.cs 按文件名找语言
 │   │   ├─ Cpp/               C++：词表、着色规则、include、说明页、提示
 │   │   ├─ C/                 C：C 关键字、着色规则、说明页
-│   │   └─ Java/              Java：词表、着色规则、说明页
+│   │   ├─ Java/              Java：词表、着色规则、说明页
+│   │   └─ CSharp/            C#：词表、着色规则、说明页
 │   └─ Ui/HelpButton.cs       右上角按钮，打开说明总览
 ├─ plugin/pages/              游戏内说明页正文（Markdown，随包发布，可直接编辑）
 │   ├─ farmer_index.md        总览页：各语言分页的导航
@@ -268,6 +271,7 @@ CppFarmer/
 - [docs/languages/cpp.md](docs/languages/cpp.md) — C++ 子集支持矩阵与语义映射
 - [docs/languages/c.md](docs/languages/c.md) — C 方言：`printf` 展开、与 C++ 的边界
 - [docs/languages/java.md](docs/languages/java.md) — Java 子集：类/静态成员/数组/字符串拼接与语义映射
+- [docs/languages/csharp.md](docs/languages/csharp.md) — C# 子集：与 Java 的差异、`Console.WriteLine`、`foreach`、`.Length`
 - [docs/ADDING_A_LANGUAGE.md](docs/ADDING_A_LANGUAGE.md) — 新增一门语言的完整接入点
 - [native/README.md](native/README.md) — 原生前端的 ABI 与目录约定
 - [docs/SAVE_SAFETY.md](docs/SAVE_SAFETY.md) — 存档安全：备份、自动存档行为、恢复与免责声明
@@ -294,8 +298,10 @@ CppFarmer/
   而且跨语言 `#include` 不互认（`.c` 导入 `.cpp` 会按 C 方言编译）
 - Java 侧：`class` 只是静态容器（不支持实例化/继承/接口），`switch`、`do/while`、三元表达式、
   位运算、泛型、多维数组、跨文件导入都会被明确拒绝；`import java.*;` 整行忽略（无标准库）
-- Java 暂不提供外部编辑器头：游戏内置函数在 Java 里以全局形式调用（`move(North)`），
-  而 Java 语言没有全局函数，无法用合法的声明文件为它们提供 IDE 补全；游戏内补全与说明页已覆盖
+- C# 侧：`class` 同样是静态容器，`switch`、`do/while`、三元、位运算、属性、字符串插值、泛型、
+  多维数组、`ref`/`out` 都会被明确拒绝；`using System;` 整行忽略（无标准库）
+- Java / C# 暂不提供外部编辑器头：游戏内置函数以全局形式调用（`move(North)`），
+  而这两门语言没有全局函数，无法用合法的声明文件为它们提供 IDE 补全；游戏内补全与说明页已覆盖
 - 捆绑的 `winhttp.dll` 是 DLL 代理加载器，个别安全软件可能误报；可从
   [BepInEx 官方仓库](https://github.com/BepInEx/BepInEx) 自行下载同版本核对
 

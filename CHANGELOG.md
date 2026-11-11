@@ -8,6 +8,27 @@
 | `plugin/CppFarmer.csproj` | `<Version>`（DLL 程序集元数据） |
 | `native/src/registry.cpp` | `cf_version()`（插件启动时打印 `native compiler: ...`） |
 
+## v0.6.0 — 2026-11-11
+
+### 新增：C# 语言支持
+
+- 新增 `csharp` 语言（`.cs` 窗口），拥有独立的解析器与代码生成器（复用 C++ 前端的词法器与 AST）。
+- 一个文件一个 `class`，类当作**静态容器**——字段与方法都要 `static`，实例成员明确报错。
+- 入口 `static void Main(string[] args)`（或无参 `static void Main()`）提升为顶层代码，开局无需「函数定义」。
+- 支持类型 `int float double bool char string void var`；一维数组 `int[] a = new int[10]`、`{1,2,3}`、`.Length`。
+- 输出 `Console.WriteLine(...)` / `Console.Write(...)` 映射为 `print`；字符串 `+` 拼接自动把数字 `str()` 化。
+- 数学 `Math.Abs` `Math.Min` `Math.Max` `Math.Sqrt` `Math.Pow` `Math.Floor` `Math.Ceiling` `Math.Round` 与 `Math.PI`。
+- 支持 `foreach (var v in xs)`；`using System;` 整行忽略；`Entities.Tree` 等游戏枚举原样透传。
+- `switch`、`do/while`、三元、位运算、对象实例化、属性、字符串插值、泛型、多维数组、`ref`/`out` 均被明确拒绝。
+- 独立的补全词表、语法着色、说明页（`csharpfarmer_reference` / `csharpfarmer_errors`）与存档后缀 `.cs`。
+- 新增 `docs/languages/csharp.md` 规格说明与 `scripts/test_csharp.py` 回归脚本。
+
+### 兼容性
+
+- 原生 ABI 未变（`cf_*` 接口不变），仅新增语言 id `csharp`；`cf_language_count()` 从 3 变为 4。
+- 0.5.x 插件配 0.6.0 DLL 仍能编译 C++/C/Java，但看不到 C#；插件与 DLL 需同版本发布。
+- 存档格式、配置项、说明页结构均未变，可直接覆盖安装。
+
 ## v0.5.0 — 2026-11-11
 
 ### 新增：Java 语言支持

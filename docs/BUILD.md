@@ -108,8 +108,9 @@ for f in tests/cpp/err/*.cpp tests/c/err/*.c; do
     build/cppfarmer.exe "$f" --check >/dev/null 2>&1; rc=$?; echo "$f rc=$rc"
 done
 
-# Java：C++ CLI 只认 cpp/c，Java 用例直接调 DLL 的 cf_transpile_ex 回归
+# Java / C#：C++ CLI 只认 cpp/c，Java 与 C# 用例直接调 DLL 的 cf_transpile_ex 回归
 python scripts/test_java.py
+python scripts/test_csharp.py
 ```
 
 用例目录约定与完整回归脚本见 [tests/README.md](../tests/README.md)。

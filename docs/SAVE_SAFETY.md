@@ -131,7 +131,7 @@ xcopy "%DATA%\Backup" "%USERPROFILE%\Desktop\TFWR-saves-backup\Backup\" /E /I /Y
 ```
 
 3. 检查目标目录里确实有 `save.json` 和你的 `.cpp` 代码文件。
-4. 之后每次**升级插件、改 C++ 前端、大改代码文件**之前，再备份一次。
+4. 之后每次**升级插件、改模组前端、大改代码文件**之前，再备份一次。
 
 ---
 

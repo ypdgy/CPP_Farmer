@@ -13,7 +13,7 @@ CXX="${CXX:-g++}"
 OUT=build
 mkdir -p "$OUT"
 
-INCLUDES=(-I native/include -I native/src -I native/frontends/cpp -I native/frontends/java)
+INCLUDES=(-I native/include -I native/src -I native/frontends/cpp -I native/frontends/java -I native/frontends/csharp)
 
 echo "compiling with $CXX"
 "$CXX" -std=c++20 -O2 -Wall -Wextra "${INCLUDES[@]}" \
@@ -26,7 +26,7 @@ echo "compiling with $CXX"
 # never needs libstdc++/libwinpthread from the toolchain.
 "$CXX" -std=c++20 -O2 -Wall -Wextra -shared -static "${INCLUDES[@]}" \
     native/src/registry.cpp native/src/cf_util.cpp native/frontends/cpp/cpp_frontend.cpp \
-    native/frontends/java/java_frontend.cpp \
+    native/frontends/java/java_frontend.cpp native/frontends/csharp/csharp_frontend.cpp \
     -o "$OUT/cppfarmer_native.dll"
 
 echo "ok: $OUT/cppfarmer.exe  $OUT/cppfarmer-watch.exe  $OUT/cppfarmer_native.dll"

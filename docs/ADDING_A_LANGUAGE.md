@@ -5,10 +5,11 @@
 
 > 本文面向改代码的人，不面向玩家。玩家视角见 [README](../README.md)。
 
-已实现的三种语言：`cpp`（C++ 子集）、`c`（C 方言）与 `java`（Java 子集）。注意 **C 没有单独的
-解析器**：它复用 `frontends/cpp/`，只在 codegen 里切 `Dialect::C`。**Java 有独立的 parser 与
-codegen**（`frontends/java/`），但复用 C++ 前端的 lexer 与 AST 定义——如果新语言的语法与现有前端足够接近，
-优先考虑 C 这条路；语法差异大（类结构、输出、字符串拼接语义不同）再像 Java 一样独立写 parser/codegen。
+已实现的四种语言：`cpp`（C++ 子集）、`c`（C 方言）、`java`（Java 子集）与 `csharp`（C# 子集）。
+注意 **C 没有单独的解析器**：它复用 `frontends/cpp/`，只在 codegen 里切 `Dialect::C`。
+**Java 与 C# 有独立的 parser 与 codegen**（`frontends/java/`、`frontends/csharp/`），但复用 C++ 前端的
+lexer 与 AST 定义——如果新语言的语法与现有前端足够接近，优先考虑 C 这条路；语法差异大
+（类结构、输出、字符串拼接语义不同）再像 Java / C# 一样独立写 parser/codegen。
 
 ---
 

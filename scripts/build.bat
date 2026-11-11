@@ -5,8 +5,8 @@ setlocal
 cd /d "%~dp0.."
 if not exist build mkdir build
 
-set INC=-I native/include -I native/src -I native/frontends/cpp -I native/frontends/java
-set CORE=native/src/registry.cpp native/src/cf_util.cpp native/frontends/cpp/cpp_frontend.cpp native/frontends/java/java_frontend.cpp
+set INC=-I native/include -I native/src -I native/frontends/cpp -I native/frontends/java -I native/frontends/csharp
+set CORE=native/src/registry.cpp native/src/cf_util.cpp native/frontends/cpp/cpp_frontend.cpp native/frontends/java/java_frontend.cpp native/frontends/csharp/csharp_frontend.cpp
 
 where g++ >nul 2>nul
 if %errorlevel%==0 (

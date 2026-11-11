@@ -21,6 +21,9 @@
 | `java/entry.java` | 转译成功，且**生成结果里没有 `def`** | `public static void main` 必须提升为顶层代码 |
 | `java/basic.java` | 转译成功 | 静态字段/方法、数组、两种循环、字符串拼接、`Math`、布尔综合用例 |
 | `java/err/*.java` | **必须报错** | 无 `static` 成员、`new` 对象、`switch`、位运算、三元表达式 |
+| `csharp/entry.cs` | 转译成功，且**生成结果里没有 `def`** | `static void Main` 必须提升为顶层代码 |
+| `csharp/basic.cs` | 转译成功 | 静态字段/方法、数组、`foreach`、字符串拼接、`Math`、`var` 推断 |
+| `csharp/err/*.cs` | **必须报错** | 无 `static` 成员、`new` 对象、`switch`、位运算、三元表达式 |
 
 > 曾有两个正向用例误放在 `err/` 里（三元表达式、Unicode 空白），现已移到 `cpp/`。
 > 如果新增用例，请先确认它到底应该成功还是失败，再决定放哪。
@@ -48,8 +51,9 @@ for f in tests/cpp/err/*.cpp tests/c/err/*.c; do
     printf '%-34s rc=%s  %s\n' "$f" "$rc" "$(echo "$msg" | head -1)"
 done
 
-# Java：C++ CLI 只认 cpp/c，Java 用例直接走 DLL 的 cf_transpile_ex 回归
+# Java / C#：C++ CLI 只认 cpp/c，Java 与 C# 用例直接走 DLL 的 cf_transpile_ex 回归
 python scripts/test_java.py
+python scripts/test_csharp.py
 ```
 
 ## 开局可用性（重要）

@@ -10,6 +10,7 @@
 #include "cf_api.h"
 #include "cf_util.h"
 #include "cpp_frontend.h"
+#include "csharp_frontend.h"
 #include "java_frontend.h"
 
 namespace {
@@ -19,6 +20,7 @@ const CfLanguage* const kLanguages[] = {
     &cf_cpp_language(),
     &cf_c_language(),
     &cf_java_language(),
+    &cf_csharp_language(),
     // &cf_rust_language(),
 };
 
@@ -42,7 +44,7 @@ void SetError(char** err, const char* language, int rc) {
 
 }  // namespace
 
-CF_EXPORT const char* cf_version(void) { return "cppfarmer 0.5.0"; }
+CF_EXPORT const char* cf_version(void) { return "cppfarmer 0.6.0"; }
 
 CF_EXPORT int cf_language_count(void) { return kLanguageCount; }
 

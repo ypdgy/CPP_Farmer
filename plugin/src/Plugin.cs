@@ -13,7 +13,7 @@ namespace CppFarmer
     public class Plugin : BaseUnityPlugin
     {
         public const string Guid = "cppfarmer";
-        public const string PluginVersion = "0.4.0";
+        public const string PluginVersion = "0.4.1";
 
         internal static ManualLogSource Log;
         internal static Plugin Instance;

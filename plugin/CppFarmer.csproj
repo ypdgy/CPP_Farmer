@@ -16,7 +16,7 @@
     <Nullable>disable</Nullable>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.4.0</Version>
+    <Version>0.4.1</Version>
     <NoWarn>$(NoWarn);CS0436</NoWarn>
   </PropertyGroup>
 

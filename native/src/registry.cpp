@@ -40,7 +40,7 @@ void SetError(char** err, const char* language, int rc) {
 
 }  // namespace
 
-CF_EXPORT const char* cf_version(void) { return "cppfarmer 0.4.0"; }
+CF_EXPORT const char* cf_version(void) { return "cppfarmer 0.4.1"; }
 
 CF_EXPORT int cf_language_count(void) { return kLanguageCount; }
 

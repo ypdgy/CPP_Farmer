@@ -8,6 +8,25 @@
 | `plugin/CppFarmer.csproj` | `<Version>`（DLL 程序集元数据） |
 | `native/src/registry.cpp` | `cf_version()`（插件启动时打印 `native compiler: ...`） |
 
+## v0.4.1 — 2026-11-11
+
+### 修复：旧插件与新 DLL 混装时崩溃
+
+- **现象**：0.2.x 的 `CppFarmer.dll` 配 0.3.0 / 0.4.0 的 `cppfarmer_native.dll`，
+  编译能成功，但第一次输出结果时抛 `EntryPointNotFoundException`（找不到入口点
+  `cppfarmer_free`）。
+- **影响范围**：只在手动混装两个版本时出现。安装包中的插件与 DLL 始终同版本，
+  **正常升级不受影响**，不需要重装。
+- **根因**：0.3.0 把导出改名成 `cf_*`，为旧插件保留了 `cppfarmer_transpile` /
+  `cppfarmer_transpile_ex` / `cppfarmer_version` 三个别名，漏掉了 `cppfarmer_free`。
+  编译侧别名齐全，掩盖了释放侧缺失——所以现象不是一启动就报错，而是跑出结果才崩。
+- **修复**：补回 `cppfarmer_free`。导出符号现为 `cf_*` 8 个 + 兼容别名 4 个，共 12 个。
+
+### 兼容性
+
+- 原生 ABI 未变，`cf_*` 与原有别名都保留；本次只补了一个缺失的别名。
+- 存档格式、配置项、说明页结构均未变，可直接覆盖安装。
+
 ## v0.4.0 — 2026-11-10
 
 ### 新增：C 语言支持
@@ -34,18 +53,6 @@
 - `.c` 里写 `cout << ...` 现在会报错并提示改用 `printf` / `print`（以前会被静默翻译成 `print`）。
   `.cpp` 里 `printf` 的占位符仍然被拒绝，两门语言各自只认自己的写法。
 - 三元表达式不再因为「顶层缩进为 0」被误判（入口提升后 `main` 就在顶层）。
-
-### 修复：旧插件与新 DLL 混装时崩溃
-
-- **现象**：0.2.x 的 `CppFarmer.dll` 配 0.3.0 / 0.4.0 的 `cppfarmer_native.dll`，
-  编译能成功，但第一次输出结果时抛 `EntryPointNotFoundException`（找不到入口点
-  `cppfarmer_free`）。
-- **影响范围**：只在手动混装两个版本时出现。安装包中的插件与 DLL 始终同版本，
-  正常升级不受影响。
-- **根因**：0.3.0 把导出改名成 `cf_*`，为旧插件保留了 `cppfarmer_transpile` /
-  `cppfarmer_transpile_ex` / `cppfarmer_version` 三个别名，漏掉了 `cppfarmer_free`。
-  编译侧别名齐全，掩盖了释放侧缺失。
-- **修复**：补回 `cppfarmer_free`。导出符号现为 `cf_*` 8 个 + 兼容别名 4 个，共 12 个。
 
 ### 外部编辑器
 
